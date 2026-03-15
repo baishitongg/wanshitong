@@ -1,0 +1,28 @@
+import type { Metadata } from "next";
+import { Geist } from "next/font/google";
+import "./globals.css";
+import { SessionProvider } from "next-auth/react";
+import { Toaster } from "sonner";
+import QueryProvider from "@/components/QueryProvider";
+
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
+
+export const metadata: Metadata = {
+  title: "万事通 · 中国超市",
+  description: "正宗中国商品，品种齐全，物美价廉，就在您身边。",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="zh-CN" suppressHydrationWarning>
+      <body className={`${geist.variable} font-sans antialiased`}>
+        <SessionProvider>
+          <QueryProvider>
+            {children}
+          </QueryProvider>
+        </SessionProvider>
+        <Toaster richColors position="top-right" />
+      </body>
+    </html>
+  );
+}
