@@ -21,7 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </QueryProvider>
         </SessionProvider>
-        <Toaster richColors position="top-right" />
+        <Toaster richColors position="bottom-right" duration={2000}/>
       </body>
     </html>
   );

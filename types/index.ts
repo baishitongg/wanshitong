@@ -1,4 +1,4 @@
-export type Role = "CUSTOMER" | "ASSISTANT" | "ADMIN";
+export type Role = "CUSTOMER" | "STAFF" | "ADMIN";
 
 export type OrderStatus =
     | "PENDING"
@@ -21,8 +21,25 @@ export interface Product {
     imageUrl: string | null;
     status: boolean;
     categoryId: string;
-    category: Category;
+    category?: { id: string; name: string };
+    createdAt: Date | string;
+    updatedAt: Date | string;
+}
+
+export interface Address {
+    id: string;
+    userId: string;
+    label: string | null;
+    recipient: string;
+    phone: string;
+    street: string;
+    city: string;
+    state: string;
+    postcode: string;
+    country: string;
+    isDefault: boolean;
     createdAt: string;
+    updatedAt: string;
 }
 
 export interface OrderItem {
@@ -39,10 +56,18 @@ export interface Order {
     guestSession: string | null;
     status: OrderStatus;
     totalAmount: number;
-    whatsappNumber: string | null;
     customerName: string | null;
-    customerEmail: string | null;
+    customerPhone: string | null;
     notes: string | null;
+    // Delivery address snapshot
+    addressId: string | null;
+    deliveryRecipient: string | null;
+    deliveryPhone: string | null;
+    deliveryStreet: string | null;
+    deliveryCity: string | null;
+    deliveryState: string | null;
+    deliveryPostcode: string | null;
+    deliveryCountry: string | null;
     items: OrderItem[];
     createdAt: string;
     updatedAt: string;
@@ -51,8 +76,7 @@ export interface Order {
 export interface CurrentUser {
     id: string;
     name: string | null;
-    email: string;
+    phone: string;
     role: Role;
-    whatsappNumber: string | null;
     profileCompleted: boolean;
 }

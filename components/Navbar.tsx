@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSession, signIn, signOut } from "next-auth/react";
-import { ShoppingCart, Store, LayoutDashboard, Settings, LogOut, LogIn } from "lucide-react";
+import { ShoppingCart, Store, LayoutDashboard, Settings, LogOut, LogIn, User, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -38,14 +38,9 @@ export default function Navbar() {
             <Link href="/" className="text-red-200 hover:text-white transition-colors">
               中国超市
             </Link>
-            {(role === "ASSISTANT" || role === "ADMIN") && (
-              <Link href="/dashboard" className="text-red-200 hover:text-white transition-colors">
+            {(role === "ASSISTANT" || role === "ADMIN" || role === "STAFF") && (
+              <Link href="/staff/dashboard" className="text-red-200 hover:text-white transition-colors">
                 订单管理
-              </Link>
-            )}
-            {role === "ADMIN" && (
-              <Link href="/admin" className="text-red-200 hover:text-white transition-colors">
-                管理后台
               </Link>
             )}
           </nav>
@@ -83,11 +78,29 @@ export default function Navbar() {
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-2 py-1.5">
                     <p className="text-sm font-medium">{session.user?.name ?? "用户"}</p>
+                    <p className="text-xs text-muted-foreground">{(session.user as any)?.phone ?? ""}</p>
                   </div>
                   <DropdownMenuSeparator />
-                  {(role === "ASSISTANT" || role === "ADMIN") && (
+
+                  {/* Profile — only for customers */}
+                  {(!role || role === "CUSTOMER") && (
                     <DropdownMenuItem asChild>
-                      <Link href="/dashboard" className="flex items-center gap-2">
+                      <Link href="/profile" className="flex items-center gap-2">
+                        <User className="h-4 w-4" /> 我的账户
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {(!role || role === "CUSTOMER") && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile?tab=addresses" className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" /> 收货地址
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+
+                  {(role === "STAFF" || role === "ASSISTANT" || role === "ADMIN") && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/staff/dashboard" className="flex items-center gap-2">
                         <LayoutDashboard className="h-4 w-4" /> 订单管理
                       </Link>
                     </DropdownMenuItem>

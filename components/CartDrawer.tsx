@@ -35,7 +35,7 @@ export default function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
             <ShoppingBag className="h-5 w-5 text-green-600" />
             购物车
             <span className="text-muted-foreground font-normal text-sm">
-              （共 {items.length} 件）
+              （共 {items.reduce((s, i) => s + i.quantity, 0)} 件）
             </span>
           </SheetTitle>
         </SheetHeader>
@@ -50,10 +50,10 @@ export default function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
           <>
             <div className="flex-1 overflow-y-auto py-4 space-y-4">
               {items.map((item) => (
-                <div key={item.id} className="flex gap-3">
+                <div key={item.productId} className="flex gap-3">
                   <div className="relative h-16 w-16 rounded-lg bg-muted overflow-hidden flex-shrink-0">
-                    {item.imageUrl ? (
-                      <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                    {item.product.imageUrl ? (
+                      <Image src={item.product.imageUrl} alt={item.product.name} fill className="object-cover" sizes="64px" />
                     ) : (
                       <div className="h-full flex items-center justify-center">
                         <Package className="h-6 w-6 text-muted-foreground/40" />
@@ -62,14 +62,14 @@ export default function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm line-clamp-1">{item.name}</p>
-                    <p className="text-sm text-muted-foreground">¥{item.price.toFixed(2)}</p>
+                    <p className="font-medium text-sm line-clamp-1">{item.product.name}</p>
+                    <p className="text-sm text-muted-foreground">¥{Number(item.product.price).toFixed(2)}</p>
                     <div className="flex items-center gap-2 mt-1.5">
                       <Button
                         variant="outline"
                         size="icon"
                         className="h-6 w-6"
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        onClick={() => updateQuantity(item.productId, item.quantity - 1)}
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
@@ -78,8 +78,8 @@ export default function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                         variant="outline"
                         size="icon"
                         className="h-6 w-6"
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        disabled={item.quantity >= item.stock}
+                        onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                        disabled={item.quantity >= item.product.stock}
                       >
                         <Plus className="h-3 w-3" />
                       </Button>
@@ -87,11 +87,11 @@ export default function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                   </div>
 
                   <div className="flex flex-col items-end justify-between">
-                    <button onClick={() => removeItem(item.id)}>
+                    <button onClick={() => removeItem(item.productId)}>
                       <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive transition-colors" />
                     </button>
                     <p className="text-sm font-semibold">
-                      ¥{(item.price * item.quantity).toFixed(2)}
+                      ¥{(Number(item.product.price) * item.quantity).toFixed(2)}
                     </p>
                   </div>
                 </div>

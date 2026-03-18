@@ -1,105 +1,124 @@
-"use client";
-
+import { notFound } from "next/navigation";
 import Image from "next/image";
-import { ShoppingCart, Package } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import Navbar from "@/components/Navbar";
+import ProductDetailClient from "@/components/ProductDetailClient";
+import ProductCard from "@/components/ProductCard";
 import { Badge } from "@/components/ui/badge";
-import { useCartStore } from "@/lib/store/cartStore";
-import { toast } from "sonner";
-import type { Product } from "@/types";
+import { ChevronRight, Package } from "lucide-react";
 
-interface ProductCardProps extends Product {
-  mode?: "buyer" | "admin";
-  onEdit?: (product: Product) => void;
+export const dynamic = "force-dynamic";
+
+interface Props {
+  params: Promise<{ id: string }>;
 }
 
-export default function ProductCard({ mode = "buyer", onEdit, ...product }: ProductCardProps) {
-  const addItem = useCartStore((s) => s.addItem);
+export default async function ProductDetailPage({ params }: Props) {
+  const { id } = await params;
 
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    addItem({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      imageUrl: product.imageUrl,
-      stock: product.stock,
-    });
-    toast.success(`已将 ${product.name} 加入购物车`);
+  if (!id) notFound();
+
+  const product = await prisma.product.findUnique({
+    where: { id },
+    include: { category: true },
+  });
+
+  if (!product || !product.status) notFound();
+
+  const relatedProducts = await prisma.product.findMany({
+    where: {
+      categoryId: product.categoryId,
+      status: true,
+      id: { not: id },
+    },
+    include: { category: true },
+    orderBy: { createdAt: "desc" },
+    take: 4,
+  });
+
+  const serializedProduct = {
+    ...product,
+    price: Number(product.price),
   };
+
+  const serializedRelated = relatedProducts.map((p) => ({
+    ...p,
+    price: Number(p.price),
+  }));
 
   const outOfStock = product.stock === 0;
 
   return (
-    <div className="group bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300">
-      {/* 图片 */}
-      <div className="relative aspect-square bg-muted overflow-hidden">
-        {product.imageUrl ? (
-          <Image
-            src={product.imageUrl}
-            alt={product.name}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
-            sizes="(max-width: 768px) 50vw, 25vw"
-          />
-        ) : (
-          <div className="h-full flex items-center justify-center">
-            <Package className="h-12 w-12 text-muted-foreground/40" />
-          </div>
-        )}
-        {outOfStock && (
-          <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
-            <Badge variant="secondary" className="text-xs">已售罄</Badge>
-          </div>
-        )}
-        <Badge className="absolute top-2 left-2 text-xs bg-background/80 text-foreground border border-border/50 backdrop-blur-sm">
-          {product.category?.name}
-        </Badge>
-      </div>
+    <div className="min-h-screen bg-background">
+      <Navbar />
 
-      {/* 信息 */}
-      <div className="p-3 space-y-2">
-        <div>
-          <h3 className="font-medium text-sm leading-tight line-clamp-2 text-foreground group-hover:text-primary transition-colors">
-            {product.name}
-          </h3>
-          {product.description && (
-            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-              {product.description}
-            </p>
-          )}
+      <div className="container mx-auto px-6 md:px-20 py-8 max-w-5xl">
+        <nav className="flex items-center gap-1.5 text-sm text-muted-foreground mb-6 flex-wrap">
+          <Link href="/" className="hover:text-foreground transition-colors">
+            首页
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" />
+          <Link
+            href={`/category/${product.categoryId}`}
+            className="hover:text-foreground transition-colors"
+          >
+            {product.category?.name}
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" />
+          <span className="text-foreground line-clamp-1">{product.name}</span>
+        </nav>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+          <div className="relative aspect-square rounded-2xl overflow-hidden bg-muted">
+            {product.imageUrl ? (
+              <Image
+                src={product.imageUrl}
+                alt={product.name}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 50vw"
+                priority
+              />
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                <Package className="h-20 w-20 opacity-20" />
+                <span className="text-sm">暂无图片</span>
+              </div>
+            )}
+
+            {outOfStock && (
+              <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+                <Badge variant="secondary" className="text-base px-4 py-2">
+                  已售罄
+                </Badge>
+              </div>
+            )}
+          </div>
+
+          <ProductDetailClient product={serializedProduct} />
         </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <span className="font-bold text-base text-foreground">
-            ¥{Number(product.price).toFixed(2)}
-          </span>
+        {serializedRelated.length > 0 && (
+          <div className="mt-16 space-y-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">同类商品</h2>
+              <Link
+                href={`/category/${product.categoryId}`}
+                className="text-sm text-red-600 hover:underline"
+              >
+                查看全部 →
+              </Link>
+            </div>
 
-          {mode === "buyer" ? (
-            <Button
-              size="sm"
-              className="h-8 px-3 bg-red-600 hover:bg-red-700 text-white text-xs"
-              onClick={handleAddToCart}
-              disabled={outOfStock}
-            >
-              <ShoppingCart className="h-3 w-3 mr-1" />
-              加购
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 px-3 text-xs"
-              onClick={(e) => { e.preventDefault(); onEdit?.(product as Product); }}
-            >
-              编辑
-            </Button>
-          )}
-        </div>
-
-        {!outOfStock && (
-          <p className="text-xs text-muted-foreground">库存 {product.stock} 件</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {serializedRelated.map((p) => (
+                <Link key={p.id} href={`/product/${p.id}`} className="block">
+                  <ProductCard {...p} mode="buyer" />
+                </Link>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>

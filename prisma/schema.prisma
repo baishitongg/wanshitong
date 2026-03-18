@@ -8,16 +8,36 @@ datasource db {
 }
 
 model User {
-  id               String   @id @default(uuid())
+  id               String    @id @default(uuid())
   name             String?
-  phone            String   @unique
-  password         String?  // hashed with bcrypt
+  phone            String    @unique
+  password         String?
   image            String?
-  role             Role     @default(CUSTOMER)
-  profileCompleted Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  role             Role      @default(CUSTOMER)
+  profileCompleted Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
   orders           Order[]
+  cart             Cart?
+  addresses        Address[]
+}
+
+model Address {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String?  // e.g. "Home", "Office"
+  recipient String
+  phone     String
+  street    String
+  city      String
+  state     String
+  postcode  String
+  country   String   @default("Malaysia")
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
 }
 
 model Category {
@@ -37,23 +57,56 @@ model Product {
   categoryId  String
   category    Category    @relation(fields: [categoryId], references: [id])
   orderItems  OrderItem[]
+  cartItems   CartItem[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 }
 
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String
+  productId String
+  quantity  Int      @default(1)
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cartId, productId])
+}
+
 model Order {
-  id            String      @id @default(uuid())
-  userId        String?
-  guestSession  String?
-  status        OrderStatus @default(PENDING)
-  totalAmount   Decimal     @db.Decimal(10, 2)
-  customerName  String?
-  customerPhone String?
-  notes         String?
-  items         OrderItem[]
-  user          User?       @relation(fields: [userId], references: [id])
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id               String      @id @default(uuid())
+  userId           String?
+  guestSession     String?
+  status           OrderStatus @default(PENDING)
+  totalAmount      Decimal     @db.Decimal(10, 2)
+  customerName     String?
+  customerPhone    String?
+  notes            String?
+  // Delivery address (linked + snapshotted for history)
+  addressId        String?
+  address          Address?    @relation(fields: [addressId], references: [id])
+  deliveryRecipient String?
+  deliveryPhone    String?
+  deliveryStreet   String?
+  deliveryCity     String?
+  deliveryState    String?
+  deliveryPostcode String?
+  deliveryCountry  String?
+  items            OrderItem[]
+  user             User?       @relation(fields: [userId], references: [id])
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 }
 
 model OrderItem {
@@ -68,8 +121,7 @@ model OrderItem {
 
 enum Role {
   CUSTOMER
-  ASSISTANT
-  ADMIN
+  STAFF
 }
 
 enum OrderStatus {

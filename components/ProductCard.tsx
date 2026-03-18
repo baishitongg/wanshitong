@@ -5,6 +5,8 @@ import { ShoppingCart, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useCartStore } from "@/lib/store/cartStore";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { Product } from "@/types";
 
@@ -14,18 +16,32 @@ interface ProductCardProps extends Product {
 }
 
 export default function ProductCard({ mode = "buyer", onEdit, ...product }: ProductCardProps) {
+  const { data: session } = useSession();
+  const router = useRouter();
   const addItem = useCartStore((s) => s.addItem);
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    addItem({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      imageUrl: product.imageUrl,
-      stock: product.stock,
-    });
+
+    // Must be logged in
+    if (!session?.user) {
+      toast.error("请先登录后再加入购物车");
+      router.push("/login");
+      return;
+    }
+
+    await addItem(
+      {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        imageUrl: product.imageUrl,
+        stock: product.stock,
+      },
+      1
+    );
+
     toast.success(`已将 ${product.name} 加入购物车`);
   };
 
@@ -33,7 +49,7 @@ export default function ProductCard({ mode = "buyer", onEdit, ...product }: Prod
 
   return (
     <div className="group bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300">
-      {/* 图片 */}
+      {/* Image */}
       <div className="relative aspect-square bg-muted overflow-hidden">
         {product.imageUrl ? (
           <Image
@@ -58,7 +74,7 @@ export default function ProductCard({ mode = "buyer", onEdit, ...product }: Prod
         </Badge>
       </div>
 
-      {/* 信息 */}
+      {/* Info */}
       <div className="p-3 space-y-2">
         <div>
           <h3 className="font-medium text-sm leading-tight line-clamp-2 text-foreground group-hover:text-primary transition-colors">
@@ -79,7 +95,7 @@ export default function ProductCard({ mode = "buyer", onEdit, ...product }: Prod
           {mode === "buyer" ? (
             <Button
               size="sm"
-              className="h-8 px-3 bg-green-600 hover:bg-green-700 text-white text-xs"
+              className="h-8 px-3 bg-red-600 hover:bg-red-700 text-white text-xs"
               onClick={handleAddToCart}
               disabled={outOfStock}
             >
