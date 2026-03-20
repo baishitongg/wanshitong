@@ -4,25 +4,27 @@ import Image from "next/image";
 import { ShoppingCart, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useCartStore } from "@/lib/store/cartStore";
+import { useShopCart } from "@/lib/store/cartStore";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { Product } from "@/types";
 
 interface ProductCardProps extends Product {
+  shopSlug?: string;
   mode?: "buyer" | "admin";
   onEdit?: (product: Product) => void;
 }
 
 export default function ProductCard({
+  shopSlug,
   mode = "buyer",
   onEdit,
   ...product
 }: ProductCardProps) {
   const { data: session } = useSession();
   const router = useRouter();
-  const addItem = useCartStore((s) => s.addItem);
+  const { addItem } = useShopCart(shopSlug ?? "__platform__");
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -31,6 +33,11 @@ export default function ProductCard({
     if (!session?.user) {
       toast.error("请先登录后再加入购物车");
       router.push("/login");
+      return;
+    }
+
+    if (!shopSlug) {
+      toast.error("当前商品未绑定店铺上下文");
       return;
     }
 
@@ -75,9 +82,11 @@ export default function ProductCard({
           </div>
         )}
 
-        <Badge className="absolute top-2 left-2 text-xs bg-background/80 text-foreground border border-border/50 backdrop-blur-sm">
-          {product.category?.name}
-        </Badge>
+        {product.category?.name && (
+          <Badge className="absolute top-2 left-2 text-xs bg-background/80 text-foreground border border-border/50 backdrop-blur-sm">
+            {product.category.name}
+          </Badge>
+        )}
       </div>
 
       <div className="p-3 space-y-2 bg-white">
@@ -92,7 +101,7 @@ export default function ProductCard({
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col gap-2">
           <span className="font-bold text-base text-foreground">
             RM{Number(product.price).toFixed(2)}
           </span>
@@ -123,9 +132,7 @@ export default function ProductCard({
         </div>
 
         {!outOfStock && (
-          <p className="text-xs text-muted-foreground">
-            库存 {product.stock} 件
-          </p>
+          <p className="text-xs text-muted-foreground">库存 {product.stock} 件</p>
         )}
       </div>
     </div>

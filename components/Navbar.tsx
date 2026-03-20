@@ -27,23 +27,28 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-import { useCartStore } from "@/lib/store/cartStore";
 import CartDrawer from "@/components/CartDrawer";
+import { buildShopHref } from "@/lib/shops";
+import { useShopCart } from "@/lib/store/cartStore";
 
 type SessionUser = {
   id?: string;
   name?: string | null;
-  email?: string | null;
   image?: string | null;
   phone?: string | null;
   role?: string;
+};
+
+type NavbarProps = {
+  shopSlug?: string;
+  shopName?: string;
 };
 
 const SUPPORT_WHATSAPP = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP ?? "";
 const SUPPORT_TELEGRAM = process.env.NEXT_PUBLIC_SUPPORT_TELEGRAM ?? "";
 
 function buildSupportWhatsAppLink() {
-  const text = encodeURIComponent("您好，我想咨询一下万事通的商品或订单服务。");
+  const text = encodeURIComponent("您好，我想咨询一下万事通的平台商品或订单服务。");
   return `https://wa.me/${SUPPORT_WHATSAPP}?text=${text}`;
 }
 
@@ -51,16 +56,15 @@ function buildSupportTelegramLink() {
   return `https://t.me/${SUPPORT_TELEGRAM.replace(/^@+/, "")}`;
 }
 
-export default function Navbar() {
+export default function Navbar({ shopSlug, shopName }: NavbarProps) {
   const { data: session, status } = useSession();
   const user = session?.user as SessionUser | undefined;
   const role = user?.role;
-
   const [cartOpen, setCartOpen] = useState(false);
 
-  const items = useCartStore((state) => state.items);
-  const fetchCart = useCartStore((state) => state.fetchCart);
-  const resetCart = useCartStore((state) => state.resetCart);
+  const shopCart = useShopCart(shopSlug ?? "__platform__");
+  const { items, fetchCart, resetCart } = shopCart;
+  const showCart = Boolean(shopSlug);
 
   const totalItems = useMemo(
     () => items.reduce((sum, item) => sum + item.quantity, 0),
@@ -68,39 +72,49 @@ export default function Navbar() {
   );
 
   useEffect(() => {
+    if (!shopSlug) return;
+
     if (status === "authenticated") {
       fetchCart();
     } else if (status === "unauthenticated") {
       resetCart();
     }
-  }, [status, fetchCart, resetCart]);
+  }, [fetchCart, resetCart, shopSlug, status]);
 
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b border-red-900/30 bg-red-950 text-white">
         <div className="container mx-auto flex h-16 items-center justify-between px-6 md:px-20">
-          <Link
-            href="/"
-            className="flex items-center gap-2 font-bold text-xl text-white"
-          >
-            <Store className="h-6 w-6 text-red-300" />
-            <span className="tracking-wide">万事通</span>
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
+          <div className="flex items-center gap-6">
             <Link
               href="/"
-              className="text-red-200 hover:text-white transition-colors"
+              className="flex items-center gap-2 font-bold text-xl text-white"
             >
-              日常
+              <Store className="h-6 w-6 text-red-300" />
+              <span className="tracking-wide">万事通</span>
             </Link>
 
-            {(role === "ASSISTANT" || role === "ADMIN" || role === "STAFF") && (
+            {shopSlug && (
               <Link
-                href="/staff/dashboard"
+                href={buildShopHref(shopSlug)}
+                className="hidden rounded-full border border-red-800/70 px-3 py-1 text-sm text-red-100 transition-colors hover:border-red-500 hover:text-white md:inline-flex"
+              >
+                {shopName ?? shopSlug}
+              </Link>
+            )}
+          </div>
+
+          <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
+            <Link href="/" className="text-red-200 hover:text-white transition-colors">
+              平台主页
+            </Link>
+
+            {shopSlug && (
+              <Link
+                href={buildShopHref(shopSlug)}
                 className="text-red-200 hover:text-white transition-colors"
               >
-                订单管理
+                店铺主页
               </Link>
             )}
 
@@ -179,20 +193,22 @@ export default function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative text-white hover:bg-red-900 hover:text-white"
-              onClick={() => setCartOpen(true)}
-            >
-              <ShoppingCart className="h-5 w-5" />
+            {showCart && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative text-white hover:bg-red-900 hover:text-white"
+                onClick={() => setCartOpen(true)}
+              >
+                <ShoppingCart className="h-5 w-5" />
 
-              {totalItems > 0 && (
-                <Badge className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full border-0 bg-yellow-400 p-0 text-xs font-bold text-red-950">
-                  {totalItems}
-                </Badge>
-              )}
-            </Button>
+                {totalItems > 0 && (
+                  <Badge className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full border-0 bg-yellow-400 p-0 text-xs font-bold text-red-950">
+                    {totalItems}
+                  </Badge>
+                )}
+              </Button>
+            )}
 
             {session ? (
               <DropdownMenu>
@@ -202,10 +218,7 @@ export default function Navbar() {
                     className="relative h-9 w-9 rounded-full hover:bg-red-900"
                   >
                     <Avatar className="h-9 w-9">
-                      <AvatarImage
-                        src={user?.image ?? ""}
-                        alt={user?.name ?? ""}
-                      />
+                      <AvatarImage src={user?.image ?? ""} alt={user?.name ?? ""} />
                       <AvatarFallback className="bg-red-800 text-sm font-semibold text-white">
                         {user?.name?.charAt(0)?.toUpperCase() ?? "用"}
                       </AvatarFallback>
@@ -215,9 +228,7 @@ export default function Navbar() {
 
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium">
-                      {user?.name ?? "用户"}
-                    </p>
+                    <p className="text-sm font-medium">{user?.name ?? "用户"}</p>
                     <p className="text-xs text-muted-foreground">
                       {user?.phone ?? ""}
                     </p>
@@ -234,25 +245,23 @@ export default function Navbar() {
                     </DropdownMenuItem>
                   )}
 
-                  {(role === "STAFF" ||
-                    role === "ASSISTANT" ||
-                    role === "ADMIN") && (
+                  {(role === "STAFF" || role === "ADMIN") && (
                     <DropdownMenuItem asChild>
-                      <Link
-                        href="/staff/dashboard"
-                        className="flex items-center gap-2"
-                      >
+                      <Link href="/staff" className="flex items-center gap-2">
                         <LayoutDashboard className="h-4 w-4" />
-                        订单管理
+                        店铺后台
                       </Link>
                     </DropdownMenuItem>
                   )}
 
                   {role === "ADMIN" && (
                     <DropdownMenuItem asChild>
-                      <Link href="/admin" className="flex items-center gap-2">
+                      <Link
+                        href="/admin/dashboard"
+                        className="flex items-center gap-2"
+                      >
                         <Settings className="h-4 w-4" />
-                        管理后台
+                        平台管理
                       </Link>
                     </DropdownMenuItem>
                   )}
@@ -283,7 +292,13 @@ export default function Navbar() {
         </div>
       </header>
 
-      <CartDrawer open={cartOpen} onOpenChange={setCartOpen} />
+      {shopSlug && (
+        <CartDrawer
+          shopSlug={shopSlug}
+          open={cartOpen}
+          onOpenChange={setCartOpen}
+        />
+      )}
     </>
   );
 }

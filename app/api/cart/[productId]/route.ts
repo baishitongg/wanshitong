@@ -10,7 +10,7 @@ type SessionUser = {
 // DELETE /api/cart/[productId] — remove one item from cart
 export async function DELETE(
     _req: Request,
-    { params }: { params: { productId: string } }
+    { params }: { params: Promise<{ productId: string }> }
 ) {
     const session = await auth();
     if (!session?.user) {
@@ -23,10 +23,13 @@ export async function DELETE(
     if (!userId) {
         return NextResponse.json({ error: "用户信息无效" }, { status: 401 });
     }
-    const { productId } = params;
+
+    const { productId } = await params;
 
     const cart = await prisma.cart.findUnique({ where: { userId } });
-    if (!cart) return NextResponse.json({ error: "购物车不存在" }, { status: 404 });
+    if (!cart) {
+        return NextResponse.json({ error: "购物车不存在" }, { status: 404 });
+    }
 
     await prisma.cartItem.deleteMany({
         where: { cartId: cart.id, productId },

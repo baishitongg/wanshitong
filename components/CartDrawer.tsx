@@ -10,18 +10,22 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { useCartStore } from "@/lib/store/cartStore";
+import { useShopCart } from "@/lib/store/cartStore";
 import { Minus, Plus, Trash2, Package, ShoppingBag } from "lucide-react";
+import { buildShopHref } from "@/lib/shops";
 
 interface CartDrawerProps {
+  shopSlug: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export default function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
+export default function CartDrawer({
+  shopSlug,
+  open,
+  onOpenChange,
+}: CartDrawerProps) {
   const router = useRouter();
-
   const {
     items,
     loading,
@@ -30,7 +34,7 @@ export default function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
     updateQuantity,
     totalPrice,
     clearCart,
-  } = useCartStore();
+  } = useShopCart(shopSlug);
 
   useEffect(() => {
     if (open) {
@@ -40,7 +44,7 @@ export default function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
 
   const handleCheckout = () => {
     onOpenChange(false);
-    router.push("/cart");
+    router.push(buildShopHref(shopSlug, "/cart"));
   };
 
   return (
@@ -51,7 +55,7 @@ export default function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
             <ShoppingBag className="h-5 w-5 text-green-600" />
             购物车
             <span className="text-muted-foreground font-normal text-sm">
-              ({items.reduce((s, i) => s + i.quantity, 0)} 件商品)
+              ({items.reduce((sum, item) => sum + item.quantity, 0)} 件商品)
             </span>
           </SheetTitle>
         </SheetHeader>
@@ -130,8 +134,7 @@ export default function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                       <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive transition-colors" />
                     </button>
                     <p className="text-sm font-semibold">
-                      RM{" "}
-                      {(Number(item.product.price) * item.quantity).toFixed(2)}
+                      RM {(Number(item.product.price) * item.quantity).toFixed(2)}
                     </p>
                   </div>
                 </div>

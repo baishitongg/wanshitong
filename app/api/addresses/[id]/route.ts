@@ -10,7 +10,7 @@ type SessionUser = {
 // PATCH /api/addresses/[id] — update an address
 export async function PATCH(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const session = await auth();
     if (!session?.user) {
@@ -24,7 +24,7 @@ export async function PATCH(
         return NextResponse.json({ error: "用户信息无效" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     const existing = await prisma.address.findUnique({ where: { id } });
     if (!existing || existing.userId !== userId) {
@@ -32,18 +32,27 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { label, recipient, phone, street, city, state, postcode, country, isDefault } =
-        body as {
-            label?: string | null;
-            recipient?: string;
-            phone?: string;
-            street?: string;
-            city?: string;
-            state?: string;
-            postcode?: string;
-            country?: string;
-            isDefault?: boolean;
-        };
+    const {
+        label,
+        recipient,
+        phone,
+        street,
+        city,
+        state,
+        postcode,
+        country,
+        isDefault,
+    } = body as {
+        label?: string | null;
+        recipient?: string;
+        phone?: string;
+        street?: string;
+        city?: string;
+        state?: string;
+        postcode?: string;
+        country?: string;
+        isDefault?: boolean;
+    };
 
     if (isDefault) {
         await prisma.address.updateMany({
@@ -73,7 +82,7 @@ export async function PATCH(
 // DELETE /api/addresses/[id] — delete an address
 export async function DELETE(
     _req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const session = await auth();
     if (!session?.user) {
@@ -87,7 +96,7 @@ export async function DELETE(
         return NextResponse.json({ error: "用户信息无效" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     const existing = await prisma.address.findUnique({ where: { id } });
     if (!existing || existing.userId !== userId) {

@@ -7,6 +7,10 @@ declare module "next-auth" {
             role: string;
             phone: string;
             profileCompleted: boolean;
+            telegramUsername: string | null;
+            preferredContactChannel: "PHONE" | "TELEGRAM";
+            staffShopId: string | null;
+            staffShopSlug: string | null;
         } & DefaultSession["user"];
     }
 
@@ -15,6 +19,10 @@ declare module "next-auth" {
         role: string;
         phone: string;
         profileCompleted: boolean;
+        telegramUsername: string | null;
+        preferredContactChannel: "PHONE" | "TELEGRAM";
+        staffShopId: string | null;
+        staffShopSlug: string | null;
     }
 }
 
@@ -24,5 +32,9 @@ declare module "next-auth/jwt" {
         role: string;
         phone: string;
         profileCompleted: boolean;
+        telegramUsername: string | null;
+        preferredContactChannel: "PHONE" | "TELEGRAM";
+        staffShopId: string | null;
+        staffShopSlug: string | null;
     }
 }

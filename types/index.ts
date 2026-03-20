@@ -9,11 +9,15 @@ export type OrderStatus =
 
 export interface Category {
     id: string;
+    shopId: string;
     name: string;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
 }
 
 export interface Product {
     id: string;
+    shopId: string;
     name: string;
     description: string | null;
     price: number;
@@ -21,7 +25,9 @@ export interface Product {
     imageUrl: string | null;
     status: boolean;
     categoryId: string;
+    attributes?: Record<string, unknown> | null;
     category?: { id: string; name: string };
+    shop?: { id: string; name: string; slug: string };
     createdAt: Date | string;
     updatedAt: Date | string;
 }
@@ -52,6 +58,7 @@ export interface OrderItem {
 
 export interface Order {
     id: string;
+    shopId: string;
     userId: string | null;
     guestSession: string | null;
     status: OrderStatus;
@@ -70,6 +77,7 @@ export interface Order {
     deliveryPostcode: string | null;
     deliveryCountry: string | null;
     items: OrderItem[];
+    shop?: { id: string; name: string; slug: string } | null;
     user?: CurrentUser | null;
     createdAt: string;
     updatedAt: string;

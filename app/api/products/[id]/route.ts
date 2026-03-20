@@ -20,7 +20,7 @@ type UpdateProductBody = {
 // PATCH /api/products/[id] — update a product (staff only)
 export async function PATCH(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const session = await auth();
     const user = session?.user as SessionUser | undefined;
@@ -30,7 +30,7 @@ export async function PATCH(
         return NextResponse.json({ error: "无权限" }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     const body = (await req.json()) as UpdateProductBody;
     const { name, description, price, stock, categoryId, imageUrl, status } =
         body;
@@ -63,7 +63,7 @@ export async function PATCH(
 // DELETE /api/products/[id] — delete a product (staff only)
 export async function DELETE(
     _req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const session = await auth();
     const user = session?.user as SessionUser | undefined;
@@ -73,7 +73,7 @@ export async function DELETE(
         return NextResponse.json({ error: "无权限" }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     const existing = await prisma.product.findUnique({ where: { id } });
 

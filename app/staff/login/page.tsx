@@ -49,7 +49,7 @@ export default function StaffLoginPage() {
     }
 
     toast.success("登录成功！");
-    router.push("/staff/dashboard");
+    router.push("/staff");
     router.refresh();
     setLoading(false);
   };

@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { DEFAULT_SHOP_SLUG } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
@@ -9,6 +10,10 @@ type AuthUser = {
     role: string;
     phone: string;
     profileCompleted: boolean;
+    telegramUsername: string | null;
+    preferredContactChannel: "PHONE" | "TELEGRAM";
+    staffShopId: string | null;
+    staffShopSlug: string | null;
 };
 
 type SessionUserFields = {
@@ -16,6 +21,10 @@ type SessionUserFields = {
     role: string;
     phone: string;
     profileCompleted: boolean;
+    telegramUsername: string | null;
+    preferredContactChannel: "PHONE" | "TELEGRAM";
+    staffShopId: string | null;
+    staffShopSlug: string | null;
 };
 
 type TokenFields = {
@@ -23,6 +32,10 @@ type TokenFields = {
     role: string;
     phone: string;
     profileCompleted: boolean;
+    telegramUsername: string | null;
+    preferredContactChannel: "PHONE" | "TELEGRAM";
+    staffShopId: string | null;
+    staffShopSlug: string | null;
 };
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -42,6 +55,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                 const user = await prisma.user.findUnique({
                     where: { phone },
+                    include: {
+                        staffProfiles: {
+                            where: { isActive: true },
+                            include: { shop: true },
+                            orderBy: { createdAt: "asc" },
+                            take: 1,
+                        },
+                    },
                 });
 
                 if (!user || !user.password) return null;
@@ -55,6 +76,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     role: user.role,
                     phone: user.phone,
                     profileCompleted: user.profileCompleted,
+                    telegramUsername: user.telegramUsername ?? null,
+                    preferredContactChannel: user.preferredContactChannel,
+                    staffShopId: user.staffProfiles[0]?.shopId ?? null,
+                    staffShopSlug:
+                        user.staffProfiles[0]?.shop.slug ??
+                        (user.role === "ADMIN" ? DEFAULT_SHOP_SLUG : null),
                 };
 
                 return authUser;
@@ -71,6 +98,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 typedToken.role = typedUser.role;
                 typedToken.phone = typedUser.phone;
                 typedToken.profileCompleted = typedUser.profileCompleted;
+                typedToken.telegramUsername = typedUser.telegramUsername;
+                typedToken.preferredContactChannel = typedUser.preferredContactChannel;
+                typedToken.staffShopId = typedUser.staffShopId;
+                typedToken.staffShopSlug = typedUser.staffShopSlug;
             }
 
             return token;
@@ -92,6 +123,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     typedSessionUser.role = typedToken.role;
                     typedSessionUser.phone = typedToken.phone;
                     typedSessionUser.profileCompleted = typedToken.profileCompleted;
+                    typedSessionUser.telegramUsername =
+                        typedToken.telegramUsername ?? null;
+                    typedSessionUser.preferredContactChannel =
+                        typedToken.preferredContactChannel ?? "PHONE";
+                    typedSessionUser.staffShopId = typedToken.staffShopId ?? null;
+                    typedSessionUser.staffShopSlug = typedToken.staffShopSlug ?? null;
                 }
             }
 

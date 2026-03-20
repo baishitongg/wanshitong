@@ -6,18 +6,19 @@ import { useRouter } from "next/navigation";
 import { ShoppingCart, Plus, Minus, Check, Package, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useCartStore } from "@/lib/store/cartStore";
+import { useShopCart } from "@/lib/store/cartStore";
 import { toast } from "sonner";
 import type { Product } from "@/types";
 
 interface Props {
+  shopSlug: string;
   product: Product;
 }
 
-export default function ProductDetailClient({ product }: Props) {
+export default function ProductDetailClient({ shopSlug, product }: Props) {
   const { data: session } = useSession();
   const router = useRouter();
-  const addItem = useCartStore((s) => s.addItem);
+  const { addItem } = useShopCart(shopSlug);
 
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
@@ -40,7 +41,7 @@ export default function ProductDetailClient({ product }: Props) {
         imageUrl: product.imageUrl,
         stock: product.stock,
       },
-      quantity
+      quantity,
     );
 
     toast.success(`已将 ${product.name} × ${quantity} 加入购物车`);
@@ -48,33 +49,30 @@ export default function ProductDetailClient({ product }: Props) {
     setTimeout(() => setAdded(false), 2000);
   };
 
-  // Stock level indicator
-  const stockLevel =
-    outOfStock
-      ? "out"
-      : product.stock <= 5
+  const stockLevel = outOfStock
+    ? "out"
+    : product.stock <= 5
       ? "low"
       : product.stock <= 20
-      ? "medium"
-      : "high";
+        ? "medium"
+        : "high";
 
   const stockColors = {
-    out:    "bg-red-100 text-red-700 border-red-200",
-    low:    "bg-orange-100 text-orange-700 border-orange-200",
+    out: "bg-red-100 text-red-700 border-red-200",
+    low: "bg-orange-100 text-orange-700 border-orange-200",
     medium: "bg-yellow-100 text-yellow-700 border-yellow-200",
-    high:   "bg-green-100 text-green-700 border-green-200",
+    high: "bg-green-100 text-green-700 border-green-200",
   };
 
   const stockLabels = {
-    out:    "已售罄",
-    low:    `仅剩 ${product.stock} 件`,
+    out: "已售罄",
+    low: `仅剩 ${product.stock} 件`,
     medium: `库存 ${product.stock} 件`,
-    high:   `库存充足（${product.stock} 件）`,
+    high: `库存充足（${product.stock} 件）`,
   };
 
   return (
     <div className="flex flex-col gap-5 py-1">
-      {/* Category badge */}
       {product.category && (
         <div>
           <Badge variant="outline" className="flex items-center gap-1 w-fit text-xs">
@@ -84,19 +82,16 @@ export default function ProductDetailClient({ product }: Props) {
         </div>
       )}
 
-      {/* Name */}
       <h1 className="text-2xl md:text-3xl font-bold leading-tight text-foreground">
         {product.name}
       </h1>
 
-      {/* Price */}
       <div className="flex items-baseline gap-2">
         <span className="text-3xl font-bold text-red-600">
           RM{Number(product.price).toFixed(2)}
         </span>
       </div>
 
-      {/* Stock badge */}
       <div>
         <span
           className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full border ${stockColors[stockLevel]}`}
@@ -105,7 +100,6 @@ export default function ProductDetailClient({ product }: Props) {
         </span>
       </div>
 
-      {/* Description */}
       {product.description && (
         <div className="border-t border-border pt-4">
           <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
@@ -114,10 +108,8 @@ export default function ProductDetailClient({ product }: Props) {
         </div>
       )}
 
-      {/* Quantity selector + Add to cart */}
       {!outOfStock && (
         <div className="border-t border-border pt-5 space-y-4">
-          {/* Qty selector */}
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground w-10">数量</span>
             <div className="flex items-center border border-border rounded-lg overflow-hidden">
@@ -147,7 +139,6 @@ export default function ProductDetailClient({ product }: Props) {
             </span>
           </div>
 
-          {/* Add to cart button */}
           <Button
             size="lg"
             className={`w-full h-12 text-base font-semibold transition-all ${
@@ -174,11 +165,7 @@ export default function ProductDetailClient({ product }: Props) {
 
       {outOfStock && (
         <div className="border-t border-border pt-5">
-          <Button
-            size="lg"
-            disabled
-            className="w-full h-12 text-base"
-          >
+          <Button size="lg" disabled className="w-full h-12 text-base">
             <Package className="h-5 w-5 mr-2" />
             已售罄
           </Button>

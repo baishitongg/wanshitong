@@ -1,9 +1,9 @@
-// components/MobileCategoryDropdown.tsx
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Grid2x2 } from "lucide-react";
+import { buildShopHref } from "@/lib/shops";
 
 interface Category {
   id: string;
@@ -11,10 +11,11 @@ interface Category {
 }
 
 interface Props {
+  shopSlug: string;
   categories: Category[];
 }
 
-export default function MobileCategoryDropdown({ categories }: Props) {
+export default function MobileCategoryDropdown({ shopSlug, categories }: Props) {
   const [open, setOpen] = useState(false);
 
   if (!categories.length) return null;
@@ -46,7 +47,7 @@ export default function MobileCategoryDropdown({ categories }: Props) {
           <div className="mt-3 rounded-2xl border border-border bg-background shadow-md overflow-hidden">
             <div className="max-h-72 overflow-y-auto p-2">
               <Link
-                href="/"
+                href={buildShopHref(shopSlug)}
                 className="block rounded-xl px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition"
                 onClick={() => setOpen(false)}
               >
@@ -57,7 +58,7 @@ export default function MobileCategoryDropdown({ categories }: Props) {
                 {categories.map((cat) => (
                   <Link
                     key={cat.id}
-                    href={`/category/${cat.id}`}
+                    href={buildShopHref(shopSlug, `/category/${cat.id}`)}
                     className="block rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted transition"
                     onClick={() => setOpen(false)}
                   >
