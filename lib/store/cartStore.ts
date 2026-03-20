@@ -1,3 +1,5 @@
+"use client";
+
 import { create } from "zustand";
 
 export interface CartProduct {
@@ -9,7 +11,7 @@ export interface CartProduct {
 }
 
 export interface CartItem {
-    id: string;         // cartItem id from DB
+    id: string; // cartItem id from DB
     productId: string;
     quantity: number;
     product: CartProduct;
@@ -19,22 +21,15 @@ interface CartStore {
     items: CartItem[];
     loading: boolean;
 
-    // Load cart from DB (call on mount when user is logged in)
     fetchCart: () => Promise<void>;
-
-    // Add or update quantity in DB
     addItem: (product: CartProduct, quantity?: number) => Promise<void>;
-
-    // Update quantity in DB
     updateQuantity: (productId: string, quantity: number) => Promise<void>;
-
-    // Remove single item from DB
     removeItem: (productId: string) => Promise<void>;
+    clearCart: () => Promise<void>;
 
-    // Clear all items (called after order placed)
-    clearCart: () => void;
+    // local-only reset, useful on logout
+    resetCart: () => void;
 
-    // Derived helpers
     totalItems: () => number;
     totalPrice: () => number;
 }
@@ -45,61 +40,82 @@ export const useCartStore = create<CartStore>((set, get) => ({
 
     fetchCart: async () => {
         set({ loading: true });
+
         try {
-            const res = await fetch("/api/cart");
-            if (res.ok) {
-                const data = await res.json();
-                set({ items: data.items ?? [] });
+            const res = await fetch("/api/cart", {
+                method: "GET",
+                cache: "no-store",
+            });
+
+            if (!res.ok) {
+                set({ items: [] });
+                return;
             }
-        } catch (e) {
-            console.error("[cart] fetch error:", e);
+
+            const data = await res.json();
+            set({ items: data?.items ?? [] });
+        } catch (error) {
+            console.error("[cart] fetchCart error:", error);
+            set({ items: [] });
         } finally {
             set({ loading: false });
         }
     },
 
     addItem: async (product, quantity = 1) => {
-        // Optimistic update
         const current = get().items;
-        const existing = current.find((i) => i.productId === product.id);
-        const newQty = existing ? existing.quantity + quantity : quantity;
+        const existing = current.find((item) => item.productId === product.id);
 
+        const nextQuantity = Math.min(
+            existing ? existing.quantity + quantity : quantity,
+            product.stock
+        );
+
+        // optimistic update
         set({
             items: existing
-                ? current.map((i) =>
-                    i.productId === product.id ? { ...i, quantity: newQty } : i
+                ? current.map((item) =>
+                    item.productId === product.id
+                        ? { ...item, quantity: nextQuantity }
+                        : item
                 )
                 : [
                     ...current,
                     {
-                        id: "temp-" + product.id,
+                        id: `temp-${product.id}`,
                         productId: product.id,
-                        quantity: newQty,
+                        quantity: nextQuantity,
                         product,
                     },
                 ],
         });
 
-        // Sync to DB
         try {
             const res = await fetch("/api/cart", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ productId: product.id, quantity: newQty }),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    productId: product.id,
+                    quantity: nextQuantity,
+                }),
             });
-            if (res.ok) {
-                const item = await res.json();
-                // Replace temp item with real DB item
-                set((state) => ({
-                    items: state.items.map((i) =>
-                        i.productId === product.id ? { ...item, product } : i
-                    ),
-                }));
-            } else {
-                // Revert on failure
+
+            if (!res.ok) {
                 set({ items: current });
+                return;
             }
-        } catch {
+
+            const dbItem: CartItem = await res.json();
+
+            set((state) => ({
+                items: state.items.map((item) =>
+                    item.productId === product.id ? dbItem : item
+                ),
+            }));
+        } catch (error) {
+            console.error("[cart] addItem error:", error);
             set({ items: current });
         }
     },
@@ -108,25 +124,43 @@ export const useCartStore = create<CartStore>((set, get) => ({
         const current = get().items;
 
         if (quantity <= 0) {
-            get().removeItem(productId);
+            await get().removeItem(productId);
             return;
         }
 
-        // Optimistic
+        // optimistic update
         set({
-            items: current.map((i) =>
-                i.productId === productId ? { ...i, quantity } : i
+            items: current.map((item) =>
+                item.productId === productId ? { ...item, quantity } : item
             ),
         });
 
         try {
             const res = await fetch("/api/cart", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ productId, quantity }),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    productId,
+                    quantity,
+                }),
             });
-            if (!res.ok) set({ items: current });
-        } catch {
+
+            if (!res.ok) {
+                set({ items: current });
+                return;
+            }
+
+            const dbItem: CartItem = await res.json();
+
+            set((state) => ({
+                items: state.items.map((item) =>
+                    item.productId === productId ? dbItem : item
+                ),
+            }));
+        } catch (error) {
+            console.error("[cart] updateQuantity error:", error);
             set({ items: current });
         }
     },
@@ -134,24 +168,53 @@ export const useCartStore = create<CartStore>((set, get) => ({
     removeItem: async (productId) => {
         const current = get().items;
 
-        // Optimistic
-        set({ items: current.filter((i) => i.productId !== productId) });
+        // optimistic update
+        set({
+            items: current.filter((item) => item.productId !== productId),
+        });
 
         try {
-            const res = await fetch(`/api/cart/${productId}`, { method: "DELETE" });
-            if (!res.ok) set({ items: current });
-        } catch {
+            const res = await fetch(`/api/cart/${productId}`, {
+                method: "DELETE",
+            });
+
+            if (!res.ok) {
+                set({ items: current });
+            }
+        } catch (error) {
+            console.error("[cart] removeItem error:", error);
             set({ items: current });
         }
     },
 
-    clearCart: () => set({ items: [] }),
+    clearCart: async () => {
+        const current = get().items;
 
-    totalItems: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
+        // optimistic update
+        set({ items: [] });
+
+        try {
+            const res = await fetch("/api/cart", {
+                method: "DELETE",
+            });
+
+            if (!res.ok) {
+                set({ items: current });
+            }
+        } catch (error) {
+            console.error("[cart] clearCart error:", error);
+            set({ items: current });
+        }
+    },
+
+    resetCart: () => set({ items: [] }),
+
+    totalItems: () =>
+        get().items.reduce((sum, item) => sum + item.quantity, 0),
 
     totalPrice: () =>
         get().items.reduce(
-            (sum, i) => sum + Number(i.product.price) * i.quantity,
+            (sum, item) => sum + Number(item.product.price) * item.quantity,
             0
         ),
 }));

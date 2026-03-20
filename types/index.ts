@@ -58,6 +58,7 @@ export interface Order {
     totalAmount: number;
     customerName: string | null;
     customerPhone: string | null;
+    telegramUsername: string | null;
     notes: string | null;
     // Delivery address snapshot
     addressId: string | null;
@@ -69,6 +70,7 @@ export interface Order {
     deliveryPostcode: string | null;
     deliveryCountry: string | null;
     items: OrderItem[];
+    user?: CurrentUser | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -77,6 +79,7 @@ export interface CurrentUser {
     id: string;
     name: string | null;
     phone: string;
+    telegramUsername?: string | null;
     role: Role;
     profileCompleted: boolean;
 }

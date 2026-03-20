@@ -2,12 +2,24 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+type SessionUser = {
+    id?: string;
+    role?: string;
+};
+
 // GET /api/cart — fetch current user's cart
 export async function GET() {
     const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "未登录" }, { status: 401 });
+    if (!session?.user) {
+        return NextResponse.json({ error: "未登录" }, { status: 401 });
+    }
 
-    const userId = (session.user as any).id as string;
+    const user = session.user as SessionUser;
+    const userId = user.id;
+
+    if (!userId) {
+        return NextResponse.json({ error: "用户信息无效" }, { status: 401 });
+    }
 
     const cart = await prisma.cart.findUnique({
         where: { userId },
@@ -30,9 +42,16 @@ export async function GET() {
 // body: { productId, quantity }
 export async function POST(req: Request) {
     const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "未登录" }, { status: 401 });
+    if (!session?.user) {
+        return NextResponse.json({ error: "未登录" }, { status: 401 });
+    }
 
-    const userId = (session.user as any).id as string;
+    const user = session.user as SessionUser;
+    const userId = user.id;
+
+    if (!userId) {
+        return NextResponse.json({ error: "用户信息无效" }, { status: 401 });
+    }
     const { productId, quantity } = await req.json();
 
     if (!productId || typeof quantity !== "number" || quantity < 1) {
@@ -65,9 +84,16 @@ export async function POST(req: Request) {
 // DELETE /api/cart — clear entire cart
 export async function DELETE() {
     const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "未登录" }, { status: 401 });
+    if (!session?.user) {
+        return NextResponse.json({ error: "未登录" }, { status: 401 });
+    }
 
-    const userId = (session.user as any).id as string;
+    const user = session.user as SessionUser;
+    const userId = user.id;
+
+    if (!userId) {
+        return NextResponse.json({ error: "用户信息无效" }, { status: 401 });
+    }
 
     await prisma.cart.deleteMany({ where: { userId } });
 

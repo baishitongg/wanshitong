@@ -2,12 +2,24 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+type SessionUser = {
+    id?: string;
+    role?: string;
+};
+
 // GET /api/addresses — fetch current user's addresses
 export async function GET() {
     const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "未登录" }, { status: 401 });
+    if (!session?.user) {
+        return NextResponse.json({ error: "未登录" }, { status: 401 });
+    }
 
-    const userId = (session.user as any).id as string;
+    const user = session.user as SessionUser;
+    const userId = user.id;
+
+    if (!userId) {
+        return NextResponse.json({ error: "用户信息无效" }, { status: 401 });
+    }
 
     const addresses = await prisma.address.findMany({
         where: { userId },
@@ -20,9 +32,16 @@ export async function GET() {
 // POST /api/addresses — create a new address
 export async function POST(req: Request) {
     const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "未登录" }, { status: 401 });
+    if (!session?.user) {
+        return NextResponse.json({ error: "未登录" }, { status: 401 });
+    }
 
-    const userId = (session.user as any).id as string;
+    const user = session.user as SessionUser;
+    const userId = user.id;
+
+    if (!userId) {
+        return NextResponse.json({ error: "用户信息无效" }, { status: 401 });
+    }
 
     const body = await req.json();
     const { label, recipient, phone, street, city, state, postcode, country, isDefault } = body;

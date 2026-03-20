@@ -92,7 +92,7 @@ export default function ProductDetailClient({ product }: Props) {
       {/* Price */}
       <div className="flex items-baseline gap-2">
         <span className="text-3xl font-bold text-red-600">
-          ¥{Number(product.price).toFixed(2)}
+          RM{Number(product.price).toFixed(2)}
         </span>
       </div>
 
@@ -142,7 +142,7 @@ export default function ProductDetailClient({ product }: Props) {
             <span className="text-xs text-muted-foreground">
               小计：
               <span className="font-semibold text-foreground ml-1">
-                ¥{(Number(product.price) * quantity).toFixed(2)}
+                RM{(Number(product.price) * quantity).toFixed(2)}
               </span>
             </span>
           </div>

@@ -15,6 +15,8 @@ model User {
   image            String?
   role             Role      @default(CUSTOMER)
   profileCompleted Boolean   @default(false)
+  telegramUsername String?
+  preferredContactChannel  ContactChannel  @default(PHONE)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   orders           Order[]
@@ -85,28 +87,30 @@ model CartItem {
 }
 
 model Order {
-  id               String      @id @default(uuid())
-  userId           String?
-  guestSession     String?
-  status           OrderStatus @default(PENDING)
-  totalAmount      Decimal     @db.Decimal(10, 2)
-  customerName     String?
-  customerPhone    String?
-  notes            String?
+  id                String      @id @default(uuid())
+  userId            String?
+  guestSession      String?
+  status            OrderStatus @default(PENDING)
+  totalAmount       Decimal     @db.Decimal(10, 2)
+  customerName      String?
+  customerPhone     String?
+  telegramUsername  String?
+  preferredContactChannel ContactChannel @default(PHONE)
+  notes             String?
   // Delivery address (linked + snapshotted for history)
-  addressId        String?
-  address          Address?    @relation(fields: [addressId], references: [id])
+  addressId         String?
+  address           Address?    @relation(fields: [addressId], references: [id])
   deliveryRecipient String?
-  deliveryPhone    String?
-  deliveryStreet   String?
-  deliveryCity     String?
-  deliveryState    String?
-  deliveryPostcode String?
-  deliveryCountry  String?
-  items            OrderItem[]
-  user             User?       @relation(fields: [userId], references: [id])
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  deliveryPhone     String?
+  deliveryStreet    String?
+  deliveryCity      String?
+  deliveryState     String?
+  deliveryPostcode  String?
+  deliveryCountry   String?
+  items             OrderItem[]
+  user              User?       @relation(fields: [userId], references: [id])
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 }
 
 model OrderItem {
@@ -130,4 +134,9 @@ enum OrderStatus {
   PROCESSING
   DONE
   CANCELLED
+}
+
+enum ContactChannel {
+  PHONE
+  TELEGRAM
 }

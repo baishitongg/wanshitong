@@ -3,6 +3,28 @@ import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+type AuthUser = {
+    id: string;
+    name: string | null;
+    role: string;
+    phone: string;
+    profileCompleted: boolean;
+};
+
+type SessionUserFields = {
+    id: string;
+    role: string;
+    phone: string;
+    profileCompleted: boolean;
+};
+
+type TokenFields = {
+    id: string;
+    role: string;
+    phone: string;
+    profileCompleted: boolean;
+};
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
     secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
     providers: [
@@ -15,45 +37,64 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             async authorize(credentials) {
                 if (!credentials?.phone || !credentials?.password) return null;
 
+                const phone = String(credentials.phone);
+                const password = String(credentials.password);
+
                 const user = await prisma.user.findUnique({
-                    where: { phone: credentials.phone as string },
+                    where: { phone },
                 });
 
                 if (!user || !user.password) return null;
 
-                const valid = await bcrypt.compare(
-                    credentials.password as string,
-                    user.password
-                );
+                const valid = await bcrypt.compare(password, user.password);
                 if (!valid) return null;
 
-                return {
+                const authUser: AuthUser = {
                     id: user.id,
                     name: user.name,
                     role: user.role,
                     phone: user.phone,
                     profileCompleted: user.profileCompleted,
                 };
+
+                return authUser;
             },
         }),
     ],
     callbacks: {
         async jwt({ token, user }) {
             if (user) {
-                token.id = user.id;
-                token.role = (user as any).role;
-                token.phone = (user as any).phone;
-                token.profileCompleted = (user as any).profileCompleted;
+                const typedUser = user as AuthUser;
+                const typedToken = token as typeof token & Partial<TokenFields>;
+
+                typedToken.id = typedUser.id;
+                typedToken.role = typedUser.role;
+                typedToken.phone = typedUser.phone;
+                typedToken.profileCompleted = typedUser.profileCompleted;
             }
+
             return token;
         },
+
         async session({ session, token }) {
             if (session.user) {
-                (session.user as any).id = token.id;
-                (session.user as any).role = token.role;
-                (session.user as any).phone = token.phone;
-                (session.user as any).profileCompleted = token.profileCompleted;
+                const typedSessionUser = session.user as typeof session.user &
+                    SessionUserFields;
+                const typedToken = token as typeof token & Partial<TokenFields>;
+
+                if (
+                    typedToken.id &&
+                    typedToken.role &&
+                    typedToken.phone &&
+                    typedToken.profileCompleted !== undefined
+                ) {
+                    typedSessionUser.id = typedToken.id;
+                    typedSessionUser.role = typedToken.role;
+                    typedSessionUser.phone = typedToken.phone;
+                    typedSessionUser.profileCompleted = typedToken.profileCompleted;
+                }
             }
+
             return session;
         },
     },

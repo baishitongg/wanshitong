@@ -70,13 +70,14 @@ export default async function ProductDetailPage({ params }: Props) {
         </nav>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-          <div className="relative aspect-square rounded-2xl overflow-hidden bg-muted">
+          <div className="relative aspect-square rounded-2xl overflow-hidden bg-white border border-gray-200 flex items-center justify-center p-10">
             {product.imageUrl ? (
               <Image
                 src={product.imageUrl}
                 alt={product.name}
-                fill
-                className="object-cover"
+                width={320}
+                height={320}
+                className="object-contain max-w-full max-h-full"
                 sizes="(max-width: 768px) 100vw, 50vw"
                 priority
               />

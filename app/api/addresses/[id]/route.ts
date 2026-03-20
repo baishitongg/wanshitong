@@ -2,27 +2,49 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+type SessionUser = {
+    id?: string;
+    role?: string;
+};
+
 // PATCH /api/addresses/[id] — update an address
 export async function PATCH(
     req: Request,
     { params }: { params: { id: string } }
 ) {
     const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "未登录" }, { status: 401 });
+    if (!session?.user) {
+        return NextResponse.json({ error: "未登录" }, { status: 401 });
+    }
 
-    const userId = (session.user as any).id as string;
+    const user = session.user as SessionUser;
+    const userId = user.id;
+
+    if (!userId) {
+        return NextResponse.json({ error: "用户信息无效" }, { status: 401 });
+    }
+
     const { id } = params;
 
-    // Ensure address belongs to this user
     const existing = await prisma.address.findUnique({ where: { id } });
     if (!existing || existing.userId !== userId) {
         return NextResponse.json({ error: "地址不存在" }, { status: 404 });
     }
 
     const body = await req.json();
-    const { label, recipient, phone, street, city, state, postcode, country, isDefault } = body;
+    const { label, recipient, phone, street, city, state, postcode, country, isDefault } =
+        body as {
+            label?: string | null;
+            recipient?: string;
+            phone?: string;
+            street?: string;
+            city?: string;
+            state?: string;
+            postcode?: string;
+            country?: string;
+            isDefault?: boolean;
+        };
 
-    // If setting as default, unset all others first
     if (isDefault) {
         await prisma.address.updateMany({
             where: { userId },
@@ -34,13 +56,13 @@ export async function PATCH(
         where: { id },
         data: {
             ...(label !== undefined && { label: label || null }),
-            ...(recipient && { recipient }),
-            ...(phone && { phone }),
-            ...(street && { street }),
-            ...(city && { city }),
-            ...(state && { state }),
-            ...(postcode && { postcode }),
-            ...(country && { country }),
+            ...(recipient !== undefined && { recipient }),
+            ...(phone !== undefined && { phone }),
+            ...(street !== undefined && { street }),
+            ...(city !== undefined && { city }),
+            ...(state !== undefined && { state }),
+            ...(postcode !== undefined && { postcode }),
+            ...(country !== undefined && { country }),
             ...(isDefault !== undefined && { isDefault }),
         },
     });
@@ -54,9 +76,17 @@ export async function DELETE(
     { params }: { params: { id: string } }
 ) {
     const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "未登录" }, { status: 401 });
+    if (!session?.user) {
+        return NextResponse.json({ error: "未登录" }, { status: 401 });
+    }
 
-    const userId = (session.user as any).id as string;
+    const user = session.user as SessionUser;
+    const userId = user.id;
+
+    if (!userId) {
+        return NextResponse.json({ error: "用户信息无效" }, { status: 401 });
+    }
+
     const { id } = params;
 
     const existing = await prisma.address.findUnique({ where: { id } });
@@ -66,14 +96,17 @@ export async function DELETE(
 
     await prisma.address.delete({ where: { id } });
 
-    // If the deleted address was default, set the next one as default
     if (existing.isDefault) {
         const next = await prisma.address.findFirst({
             where: { userId },
             orderBy: { createdAt: "asc" },
         });
+
         if (next) {
-            await prisma.address.update({ where: { id: next.id }, data: { isDefault: true } });
+            await prisma.address.update({
+                where: { id: next.id },
+                data: { isDefault: true },
+            });
         }
     }
 

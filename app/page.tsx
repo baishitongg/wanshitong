@@ -51,13 +51,11 @@ export default async function HomePage() {
 
           {/* Desktop */}
           <div className="hidden md:block border-b border-border bg-background">
-            <div
-              className="container mx-auto px-6 md:px-20 py-3 flex items-center gap-4 overflow-x-auto"
-              style={{ scrollbarWidth: "none" }}
-            >
+            <div className="container mx-auto px-6 md:px-20 py-3 flex items-center gap-4 overflow-x-auto whitespace-nowrap no-scrollbar">
               <span className="text-xs text-muted-foreground font-medium flex-shrink-0 uppercase tracking-wide">
                 分类
               </span>
+
               {categories.map((cat) => (
                 <Link
                   key={cat.id}

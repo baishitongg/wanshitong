@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+
 // server.js — Custom Node.js entry point.
 // Run with: node server.js  (or via PM2: pm2 start ecosystem.config.js)
 // This file attaches Socket.IO to the same HTTP server that Next.js uses.
@@ -35,7 +37,7 @@ app.prepare().then(() => {
     },
   });
 
-  // Make `io` available globally so API routes can emit events
+  // Make io available globally so API routes can emit events
   global.io = io;
 
   io.on("connection", (socket) => {

@@ -3,10 +3,25 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+type SessionUser = {
+    role?: string;
+};
+
+type CreateProductBody = {
+    name?: string;
+    description?: string | null;
+    price?: number;
+    stock?: number;
+    categoryId?: string;
+    imageUrl?: string | null;
+    status?: boolean;
+};
+
 // GET /api/products — fetch all products (staff gets all, public gets active only)
 export async function GET(req: Request) {
     const session = await auth();
-    const role = (session?.user as any)?.role;
+    const user = session?.user as SessionUser | undefined;
+    const role = user?.role;
     const isStaff = role === "STAFF" || role === "ADMIN";
 
     const { searchParams } = new URL(req.url);
@@ -32,16 +47,22 @@ export async function GET(req: Request) {
 // POST /api/products — create a new product (staff only)
 export async function POST(req: Request) {
     const session = await auth();
-    const role = (session?.user as any)?.role;
+    const user = session?.user as SessionUser | undefined;
+    const role = user?.role;
+
     if (role !== "STAFF" && role !== "ADMIN") {
         return NextResponse.json({ error: "无权限" }, { status: 403 });
     }
 
-    const body = await req.json();
-    const { name, description, price, stock, categoryId, imageUrl, status } = body;
+    const body = (await req.json()) as CreateProductBody;
+    const { name, description, price, stock, categoryId, imageUrl, status } =
+        body;
 
     if (!name || price === undefined || !categoryId) {
-        return NextResponse.json({ error: "商品名称、价格和分类为必填项" }, { status: 400 });
+        return NextResponse.json(
+            { error: "商品名称、价格和分类为必填项" },
+            { status: 400 }
+        );
     }
 
     const product = await prisma.product.create({
@@ -59,5 +80,11 @@ export async function POST(req: Request) {
 
     revalidatePath("/");
 
-    return NextResponse.json({ ...product, price: Number(product.price) }, { status: 201 });
+    return NextResponse.json(
+        {
+            ...product,
+            price: Number(product.price),
+        },
+        { status: 201 }
+    );
 }

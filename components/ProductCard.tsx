@@ -15,7 +15,11 @@ interface ProductCardProps extends Product {
   onEdit?: (product: Product) => void;
 }
 
-export default function ProductCard({ mode = "buyer", onEdit, ...product }: ProductCardProps) {
+export default function ProductCard({
+  mode = "buyer",
+  onEdit,
+  ...product
+}: ProductCardProps) {
   const { data: session } = useSession();
   const router = useRouter();
   const addItem = useCartStore((s) => s.addItem);
@@ -24,7 +28,6 @@ export default function ProductCard({ mode = "buyer", onEdit, ...product }: Prod
     e.preventDefault();
     e.stopPropagation();
 
-    // Must be logged in
     if (!session?.user) {
       toast.error("请先登录后再加入购物车");
       router.push("/login");
@@ -39,7 +42,7 @@ export default function ProductCard({ mode = "buyer", onEdit, ...product }: Prod
         imageUrl: product.imageUrl,
         stock: product.stock,
       },
-      1
+      1,
     );
 
     toast.success(`已将 ${product.name} 加入购物车`);
@@ -48,34 +51,36 @@ export default function ProductCard({ mode = "buyer", onEdit, ...product }: Prod
   const outOfStock = product.stock === 0;
 
   return (
-    <div className="group bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300">
-      {/* Image */}
-      <div className="relative aspect-square bg-muted overflow-hidden">
+    <div className="group bg-white border border-border rounded-xl overflow-hidden hover:shadow-lg hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300">
+      <div className="relative aspect-square bg-white overflow-hidden">
         {product.imageUrl ? (
           <Image
             src={product.imageUrl}
             alt={product.name}
             fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            className="object-contain p-2 transition-transform duration-500"
             sizes="(max-width: 768px) 50vw, 25vw"
           />
         ) : (
-          <div className="h-full flex items-center justify-center">
+          <div className="h-full flex items-center justify-center bg-white">
             <Package className="h-12 w-12 text-muted-foreground/40" />
           </div>
         )}
+
         {outOfStock && (
           <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
-            <Badge variant="secondary" className="text-xs">已售罄</Badge>
+            <Badge variant="secondary" className="text-xs">
+              已售罄
+            </Badge>
           </div>
         )}
+
         <Badge className="absolute top-2 left-2 text-xs bg-background/80 text-foreground border border-border/50 backdrop-blur-sm">
           {product.category?.name}
         </Badge>
       </div>
 
-      {/* Info */}
-      <div className="p-3 space-y-2">
+      <div className="p-3 space-y-2 bg-white">
         <div>
           <h3 className="font-medium text-sm leading-tight line-clamp-2 text-foreground group-hover:text-primary transition-colors">
             {product.name}
@@ -89,7 +94,7 @@ export default function ProductCard({ mode = "buyer", onEdit, ...product }: Prod
 
         <div className="flex items-center justify-between gap-2">
           <span className="font-bold text-base text-foreground">
-            ¥{Number(product.price).toFixed(2)}
+            RM{Number(product.price).toFixed(2)}
           </span>
 
           {mode === "buyer" ? (
@@ -107,7 +112,10 @@ export default function ProductCard({ mode = "buyer", onEdit, ...product }: Prod
               size="sm"
               variant="outline"
               className="h-8 px-3 text-xs"
-              onClick={(e) => { e.preventDefault(); onEdit?.(product as Product); }}
+              onClick={(e) => {
+                e.preventDefault();
+                onEdit?.(product as Product);
+              }}
             >
               编辑
             </Button>
@@ -115,7 +123,9 @@ export default function ProductCard({ mode = "buyer", onEdit, ...product }: Prod
         </div>
 
         {!outOfStock && (
-          <p className="text-xs text-muted-foreground">库存 {product.stock} 件</p>
+          <p className="text-xs text-muted-foreground">
+            库存 {product.stock} 件
+          </p>
         )}
       </div>
     </div>
