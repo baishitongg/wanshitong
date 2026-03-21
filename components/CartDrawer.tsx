@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
@@ -11,7 +11,14 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useShopCart } from "@/lib/store/cartStore";
-import { Minus, Plus, Trash2, Package, ShoppingBag } from "lucide-react";
+import {
+  Minus,
+  Plus,
+  Trash2,
+  Package,
+  ShoppingBag,
+  CheckSquare,
+} from "lucide-react";
 import { buildShopHref } from "@/lib/shops";
 
 interface CartDrawerProps {
@@ -35,6 +42,7 @@ export default function CartDrawer({
     totalPrice,
     clearCart,
   } = useShopCart(shopSlug);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (open) {
@@ -42,9 +50,47 @@ export default function CartDrawer({
     }
   }, [open, fetchCart]);
 
+  useEffect(() => {
+    setSelectedProductIds((current) => {
+      const availableIds = items.map((item) => item.productId);
+      if (availableIds.length === 0) return [];
+      if (current.length === 0) return availableIds;
+      const next = current.filter((id) => availableIds.includes(id));
+      return next.length > 0 ? next : availableIds;
+    });
+  }, [items]);
+
+  const selectedItems = useMemo(
+    () => items.filter((item) => selectedProductIds.includes(item.productId)),
+    [items, selectedProductIds],
+  );
+  const allSelected =
+    items.length > 0 && selectedProductIds.length === items.length;
+  const selectedTotal = selectedItems.reduce(
+    (sum, item) => sum + Number(item.product.price) * item.quantity,
+    0,
+  );
+
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProductIds((current) =>
+      current.includes(productId)
+        ? current.filter((id) => id !== productId)
+        : [...current, productId],
+    );
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedProductIds(allSelected ? [] : items.map((item) => item.productId));
+  };
+
   const handleCheckout = () => {
+    const params = new URLSearchParams();
+    if (selectedProductIds.length > 0 && selectedProductIds.length < items.length) {
+      params.set("selected", selectedProductIds.join(","));
+    }
     onOpenChange(false);
-    router.push(buildShopHref(shopSlug, "/cart"));
+    const query = params.toString();
+    router.push(`${buildShopHref(shopSlug, "/cart")}${query ? `?${query}` : ""}`);
   };
 
   return (
@@ -73,8 +119,34 @@ export default function CartDrawer({
         ) : (
           <>
             <div className="flex-1 overflow-y-auto px-5 py-4 pr-4 space-y-4">
+              {items.length > 1 && (
+                <div className="flex items-center justify-between rounded-xl border bg-muted/30 px-3 py-2">
+                  <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 rounded border-border text-red-600 focus:ring-red-500"
+                    />
+                    <span className="inline-flex items-center gap-1.5">
+                      <CheckSquare className="h-4 w-4 text-red-600" />
+                      全选
+                    </span>
+                  </label>
+                  <span className="text-xs text-muted-foreground">在这里选择结算商品</span>
+                </div>
+              )}
+
               {items.map((item) => (
                 <div key={item.productId} className="flex gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedProductIds.includes(item.productId)}
+                    onChange={() => toggleProductSelection(item.productId)}
+                    className="mt-1 h-4 w-4 rounded border-border text-red-600 focus:ring-red-500 shrink-0"
+                    aria-label={`select ${item.product.name}`}
+                  />
+
                   <div className="relative h-16 w-16 rounded-lg bg-muted overflow-hidden flex-shrink-0">
                     {item.product.imageUrl ? (
                       <Image
@@ -142,14 +214,22 @@ export default function CartDrawer({
             </div>
 
             <div className="space-y-4 px-5 py-4 border-t">
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>已选商品</span>
+                <span>
+                  {selectedItems.reduce((sum, item) => sum + item.quantity, 0)} 件
+                </span>
+              </div>
+
               <div className="flex items-center justify-between font-semibold text-base">
                 <span>总计</span>
-                <span>RM {totalPrice().toFixed(2)}</span>
+                <span>RM {(selectedProductIds.length > 0 ? selectedTotal : totalPrice()).toFixed(2)}</span>
               </div>
 
               <Button
                 className="w-full bg-red-600 hover:bg-red-700 text-white"
                 onClick={handleCheckout}
+                disabled={selectedProductIds.length === 0}
               >
                 去结算
               </Button>

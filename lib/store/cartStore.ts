@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { create } from "zustand";
 
 export interface CartProduct {
@@ -283,12 +283,33 @@ export const useCartStore = create<CartStore>((set, get) => ({
   resetCart: (shopSlug) =>
     set((state) => {
       if (!shopSlug) {
+        if (Object.keys(state.carts).length === 0) {
+          return state;
+        }
         return { carts: {} };
+      }
+
+      const currentCart = getShopCart(state.carts, shopSlug);
+      if (
+        currentCart.items.length === 0 &&
+        currentCart.loading === false &&
+        !state.carts[shopSlug]
+      ) {
+        return state;
+      }
+
+      if (currentCart.items.length === 0 && currentCart.loading === false) {
+        return {
+          carts: mergeShopCart(state.carts, shopSlug, {
+            items: EMPTY_CART_ITEMS,
+            loading: false,
+          }),
+        };
       }
 
       return {
         carts: mergeShopCart(state.carts, shopSlug, {
-          items: [],
+          items: EMPTY_CART_ITEMS,
           loading: false,
         }),
       };
@@ -307,18 +328,34 @@ export function useShopCart(shopSlug: string) {
   const clearCart = useCartStore((state) => state.clearCart);
   const resetCart = useCartStore((state) => state.resetCart);
 
+  const fetchShopCart = useCallback(() => fetchCart(shopSlug), [fetchCart, shopSlug]);
+  const addShopItem = useCallback(
+    (product: CartProduct, quantity?: number) =>
+      addItem(shopSlug, product, quantity),
+    [addItem, shopSlug],
+  );
+  const updateShopQuantity = useCallback(
+    (productId: string, quantity: number) =>
+      updateQuantity(shopSlug, productId, quantity),
+    [shopSlug, updateQuantity],
+  );
+  const removeShopItem = useCallback(
+    (productId: string) => removeItem(shopSlug, productId),
+    [removeItem, shopSlug],
+  );
+  const clearShopCart = useCallback(() => clearCart(shopSlug), [clearCart, shopSlug]);
+  const resetShopCart = useCallback(() => resetCart(shopSlug), [resetCart, shopSlug]);
+
   return useMemo(
     () => ({
       items,
       loading,
-      fetchCart: () => fetchCart(shopSlug),
-      addItem: (product: CartProduct, quantity?: number) =>
-        addItem(shopSlug, product, quantity),
-      updateQuantity: (productId: string, quantity: number) =>
-        updateQuantity(shopSlug, productId, quantity),
-      removeItem: (productId: string) => removeItem(shopSlug, productId),
-      clearCart: () => clearCart(shopSlug),
-      resetCart: () => resetCart(shopSlug),
+      fetchCart: fetchShopCart,
+      addItem: addShopItem,
+      updateQuantity: updateShopQuantity,
+      removeItem: removeShopItem,
+      clearCart: clearShopCart,
+      resetCart: resetShopCart,
       totalItems: () => items.reduce((sum, item) => sum + item.quantity, 0),
       totalPrice: () =>
         items.reduce(
@@ -327,15 +364,14 @@ export function useShopCart(shopSlug: string) {
         ),
     }),
     [
-      addItem,
-      clearCart,
-      fetchCart,
+      addShopItem,
+      clearShopCart,
+      fetchShopCart,
       items,
       loading,
-      removeItem,
-      resetCart,
-      shopSlug,
-      updateQuantity,
+      removeShopItem,
+      resetShopCart,
+      updateShopQuantity,
     ],
   );
 }

@@ -67,6 +67,24 @@ export async function PATCH(req: Request, { params }: Params) {
       shopId: context.isAdmin ? undefined : context.shopId!,
     });
 
+    try {
+      const targetShopId = order.shop?.id ?? context.shopId;
+      const io = (globalThis as {
+        io?: {
+          to: (room: string) => {
+            emit: (event: string, payload: unknown) => void;
+          };
+        };
+      }).io;
+
+      if (targetShopId) {
+        io?.to(`shop:${targetShopId}`).emit("order_updated", order);
+      }
+      io?.to("assistants").emit("order_updated", order);
+    } catch (socketError) {
+      console.error("[staff][orders] socket emit failed:", socketError);
+    }
+
     return NextResponse.json(order);
   } catch (error) {
     const message = error instanceof Error ? error.message : "UNKNOWN";

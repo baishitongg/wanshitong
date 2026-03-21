@@ -16,6 +16,7 @@ type CreateOrderInput = {
   preferredContactChannel?: ContactChannel | null;
   notes?: string | null;
   addressId: string;
+  selectedProductIds?: string[];
 };
 
 export async function getProductsForShop(shopId: string, includeInactive = false) {
@@ -178,6 +179,15 @@ export async function createOrderFromCart(input: CreateOrderInput) {
     throw new Error("EMPTY_CART");
   }
 
+  const selectedItems =
+    input.selectedProductIds && input.selectedProductIds.length > 0
+      ? cart.items.filter((item) => input.selectedProductIds?.includes(item.productId))
+      : cart.items;
+
+  if (selectedItems.length === 0) {
+    throw new Error("NO_ITEMS_SELECTED");
+  }
+
   const resolvedPhone = (input.customerPhone ?? "").trim();
   const resolvedTelegram = (input.telegramUsername ?? "")
     .trim()
@@ -193,7 +203,7 @@ export async function createOrderFromCart(input: CreateOrderInput) {
   }
 
   const order = await prisma.$transaction(async (tx) => {
-    for (const item of cart.items) {
+    for (const item of selectedItems) {
       const updated = await tx.product.updateMany({
         where: {
           id: item.productId,
@@ -214,7 +224,7 @@ export async function createOrderFromCart(input: CreateOrderInput) {
       }
     }
 
-    const totalAmount = cart.items.reduce(
+    const totalAmount = selectedItems.reduce(
       (sum, item) => sum + Number(item.product.price) * item.quantity,
       0,
     );
@@ -238,7 +248,7 @@ export async function createOrderFromCart(input: CreateOrderInput) {
         deliveryPostcode: address.postcode,
         deliveryCountry: address.country,
         items: {
-          create: cart.items.map((item) => ({
+          create: selectedItems.map((item) => ({
             productId: item.productId,
             quantity: item.quantity,
             unitPrice: item.product.price,
@@ -249,12 +259,23 @@ export async function createOrderFromCart(input: CreateOrderInput) {
     });
 
     await tx.cartItem.deleteMany({
+      where: {
+        cartId: cart.id,
+        productId: {
+          in: selectedItems.map((item) => item.productId),
+        },
+      },
+    });
+
+    const remainingCount = await tx.cartItem.count({
       where: { cartId: cart.id },
     });
 
-    await tx.cart.delete({
-      where: { id: cart.id },
-    });
+    if (remainingCount === 0) {
+      await tx.cart.delete({
+        where: { id: cart.id },
+      });
+    }
 
     return newOrder;
   });

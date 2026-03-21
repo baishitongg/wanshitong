@@ -19,7 +19,7 @@ export default async function PlatformLandingPage() {
       <section className="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,_#7f1d1d,_#111827_60%)] px-6 py-24 text-white md:px-20">
         <div className="mx-auto max-w-6xl">
           <p className="mb-4 text-sm font-semibold uppercase tracking-[0.3em] text-red-200">
-            Wanshitong Platform
+            万事通电商平台
           </p>
           <h1 className="max-w-3xl text-4xl font-bold leading-tight md:text-6xl">
             一个项目，支持多店铺运营的万事通电商平台

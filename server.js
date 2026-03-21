@@ -43,10 +43,19 @@ app.prepare().then(() => {
   io.on("connection", (socket) => {
     console.log(`[Socket.IO] Client connected: ${socket.id}`);
 
-    // Assistants join a dedicated room to receive order notifications
     socket.on("join_assistants", () => {
       socket.join("assistants");
       console.log(`[Socket.IO] ${socket.id} joined assistants room`);
+    });
+
+    socket.on("join_shop_staff", (shopId) => {
+      if (typeof shopId !== "string" || !shopId.trim()) {
+        return;
+      }
+
+      const room = `shop:${shopId}`;
+      socket.join(room);
+      console.log(`[Socket.IO] ${socket.id} joined ${room}`);
     });
 
     socket.on("disconnect", () => {

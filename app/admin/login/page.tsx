@@ -24,9 +24,7 @@ export default function AdminLoginPage() {
       const role = String(user?.role ?? "").toUpperCase();
 
       if (role === "ADMIN") {
-        router.replace("/admin/dashboard");
-      } else {
-        router.replace("/");
+        router.replace("/admin");
       }
     }
   }, [status, user?.role, router]);
@@ -60,7 +58,7 @@ export default function AdminLoginPage() {
     }
 
     setSubmitting(false);
-    router.replace("/admin/dashboard");
+    router.replace("/admin");
     router.refresh();
   };
 

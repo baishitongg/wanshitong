@@ -53,6 +53,7 @@ import type { Order, OrderStatus, Product, Category } from "@/types";
 type SessionUser = {
   role?: string;
   name?: string;
+  staffShopId?: string | null;
 };
 
 const STATUS_OPTIONS: OrderStatus[] = [
@@ -73,6 +74,7 @@ const statusLabels: Record<string, string> = {
 
 // ─── Orders Tab ───────────────────────────────────────────────────────────────
 function OrdersTab() {
+  const { data: session } = useSession();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
@@ -81,6 +83,7 @@ function OrdersTab() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const currentUser = session?.user as SessionUser | undefined;
 
   const PAGE_SIZE = 6;
 
@@ -133,7 +136,12 @@ function OrdersTab() {
     const socket = getSocket();
 
     const joinRoom = () => {
-      socket.emit("join_assistants");
+      const role = String(currentUser?.role ?? "").toUpperCase();
+      if (role === "ADMIN") {
+        socket.emit("join_assistants");
+      } else if (role === "STAFF" && currentUser?.staffShopId) {
+        socket.emit("join_shop_staff", currentUser.staffShopId);
+      }
       setConnected(true);
     };
 
@@ -160,7 +168,7 @@ function OrdersTab() {
       socket.off(SOCKET_EVENTS.NEW_ORDER);
       socket.off(SOCKET_EVENTS.ORDER_UPDATED);
     };
-  }, [selectedOrder?.id]);
+  }, [currentUser?.role, currentUser?.staffShopId, selectedOrder?.id]);
 
   useEffect(() => {
     setPage(1);

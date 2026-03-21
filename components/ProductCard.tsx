@@ -58,14 +58,14 @@ export default function ProductCard({
   const outOfStock = product.stock === 0;
 
   return (
-    <div className="group bg-white border border-border rounded-xl overflow-hidden hover:shadow-lg hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300">
-      <div className="relative aspect-square bg-white overflow-hidden">
+    <div className="group flex h-full flex-col bg-white border border-border rounded-xl overflow-hidden hover:shadow-lg hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300">
+      <div className="relative aspect-square bg-white overflow-hidden shrink-0">
         {product.imageUrl ? (
           <Image
             src={product.imageUrl}
             alt={product.name}
             fill
-            className="object-contain p-2 transition-transform duration-500"
+            className="object-contain p-3 transition-transform duration-500"
             sizes="(max-width: 768px) 50vw, 25vw"
           />
         ) : (
@@ -89,19 +89,19 @@ export default function ProductCard({
         )}
       </div>
 
-      <div className="p-3 space-y-2 bg-white">
-        <div>
-          <h3 className="font-medium text-sm leading-tight line-clamp-2 text-foreground group-hover:text-primary transition-colors">
+      <div className="flex flex-1 flex-col p-3 bg-white">
+        <div className="min-h-[3.5rem]">
+          <h3 className="font-medium text-sm leading-tight line-clamp-2 text-foreground group-hover:text-primary transition-colors min-h-[2.5rem]">
             {product.name}
           </h3>
           {product.description && (
-            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5 min-h-4">
               {product.description}
             </p>
           )}
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="mt-auto flex flex-col gap-2 pt-3">
           <span className="font-bold text-base text-foreground">
             RM{Number(product.price).toFixed(2)}
           </span>
@@ -131,9 +131,9 @@ export default function ProductCard({
           )}
         </div>
 
-        {!outOfStock && (
-          <p className="text-xs text-muted-foreground">库存 {product.stock} 件</p>
-        )}
+        <p className="pt-2 text-xs text-muted-foreground min-h-5">
+          {!outOfStock ? `库存 ${product.stock} 件` : ""}
+        </p>
       </div>
     </div>
   );

@@ -15,6 +15,7 @@ type Body = {
   preferredContactChannel?: ContactChannel;
   notes?: string;
   addressId?: string;
+  selectedProductIds?: string[];
 };
 
 export async function POST(req: Request, { params }: Params) {
@@ -41,13 +42,31 @@ export async function POST(req: Request, { params }: Params) {
         body.preferredContactChannel ?? user.preferredContactChannel ?? "PHONE",
       notes: body.notes ?? null,
       addressId: body.addressId,
+      selectedProductIds: body.selectedProductIds ?? [],
     });
+
+    try {
+      const io = (globalThis as {
+        io?: {
+          to: (room: string) => {
+            emit: (event: string, payload: unknown) => void;
+          };
+        };
+      }).io;
+
+      io?.to(`shop:${shop.id}`).emit("new_order", order);
+      io?.to("assistants").emit("new_order", order);
+    } catch (socketError) {
+      console.error("[shops][checkout] socket emit failed:", socketError);
+    }
+
     return NextResponse.json(order, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "UNKNOWN";
     const map: Record<string, string> = {
       ADDRESS_NOT_FOUND: "地址不存在",
       EMPTY_CART: "购物车为空",
+      NO_ITEMS_SELECTED: "请至少选择一个商品进行结算",
       PHONE_REQUIRED: "您选择了手机号作为联系方式，但手机号为空",
       TELEGRAM_REQUIRED: "您选择了 Telegram 作为联系方式，但用户名为空",
       INSUFFICIENT_STOCK: "库存不足",

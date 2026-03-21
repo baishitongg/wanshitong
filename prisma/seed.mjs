@@ -10,18 +10,37 @@ const DEFAULT_SHOP = {
   heroSubtitle: "Multi-shop platform default storefront",
 };
 
+const BASE_SHOPS = [
+  DEFAULT_SHOP,
+  {
+    slug: "zhongguo-chaoshi",
+    name: "中国超市",
+    description: "正宗中国商品，品种齐全，物美价廉。",
+    heroTitle: "中国超市",
+    heroSubtitle: "正宗中国商品，就在您身边",
+    heroImageUrl:
+      "https://zmlbzrkxejcfvingnead.supabase.co/storage/v1/object/public/product/products/Gemini_Generated_Image_g649erg649erg649.png",
+  },
+];
+
 async function main() {
-  await prisma.shop.upsert({
-    where: { slug: DEFAULT_SHOP.slug },
-    update: {
-      name: DEFAULT_SHOP.name,
-      description: DEFAULT_SHOP.description,
-      heroTitle: DEFAULT_SHOP.heroTitle,
-      heroSubtitle: DEFAULT_SHOP.heroSubtitle,
-      status: "ACTIVE",
-    },
-    create: DEFAULT_SHOP,
-  });
+  for (const shop of BASE_SHOPS) {
+    await prisma.shop.upsert({
+      where: { slug: shop.slug },
+      update: {
+        name: shop.name,
+        description: shop.description,
+        heroTitle: shop.heroTitle,
+        heroSubtitle: shop.heroSubtitle,
+        heroImageUrl: shop.heroImageUrl ?? null,
+        status: "ACTIVE",
+      },
+      create: {
+        ...shop,
+        status: "ACTIVE",
+      },
+    });
+  }
 }
 
 main()

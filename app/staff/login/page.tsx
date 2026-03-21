@@ -23,7 +23,7 @@ export default function StaffLoginPage() {
     }
     setLoading(true);
 
-    // staffId is stored in the phone field in DB
+    // For now staff login ID is stored in the phone field in DB.
     const res = await signIn("credentials", {
       phone: staffId,
       password,
