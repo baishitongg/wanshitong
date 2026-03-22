@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -18,6 +19,14 @@ type ShopSummary = {
   heroImageUrl: string | null;
   whatsappPhone: string | null;
   telegramUsername: string | null;
+  shopType: "PRODUCT" | "SERVICE" | "HYBRID";
+  checkoutMode: "DELIVERY" | "BOOKING" | "FLEXIBLE";
+  themePrimary: string | null;
+  themeSecondary: string | null;
+  themeAccent: string | null;
+  themeSurface: string | null;
+  logoUrl: string | null;
+  homepageVariant: string | null;
   status: "ACTIVE" | "INACTIVE";
   _count: {
     products: number;
@@ -58,6 +67,14 @@ const initialShopForm = {
   heroImageUrl: "",
   whatsappPhone: "",
   telegramUsername: "",
+  shopType: "PRODUCT" as "PRODUCT" | "SERVICE" | "HYBRID",
+  checkoutMode: "DELIVERY" as "DELIVERY" | "BOOKING" | "FLEXIBLE",
+  themePrimary: "",
+  themeSecondary: "",
+  themeAccent: "",
+  themeSurface: "",
+  logoUrl: "",
+  homepageVariant: "",
   status: "ACTIVE" as "ACTIVE" | "INACTIVE",
 };
 
@@ -69,6 +86,8 @@ export default function AdminManagementPanel({
   const router = useRouter();
   const [creatingShop, setCreatingShop] = useState(false);
   const [creatingStaff, setCreatingStaff] = useState(false);
+  const [uploadingHero, setUploadingHero] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [shopForm, setShopForm] = useState(initialShopForm);
   const [staffForm, setStaffForm] = useState({
     name: "",
@@ -146,6 +165,72 @@ export default function AdminManagementPanel({
     }
   };
 
+  const uploadShopAsset = async (
+    file: File,
+    kind: "hero" | "logo",
+  ) => {
+    const slugBase = shopForm.slug.trim() || shopForm.name.trim() || "shop";
+    const normalizedSlug = slugBase
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^\w\s-]/g, "")
+      .replace(/[\s_]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "") || "shop";
+    const folder = `shops/${normalizedSlug}/${kind}`;
+
+    const setUploading = kind === "hero" ? setUploadingHero : setUploadingLogo;
+    setUploading(true);
+
+    try {
+      const uploadUrlRes = await fetch("/api/upload-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: file.name,
+          folder,
+        }),
+      });
+
+      const uploadUrlData = (await uploadUrlRes.json()) as {
+        error?: string;
+        signedUrl?: string;
+        publicUrl?: string;
+      };
+
+      if (!uploadUrlRes.ok || !uploadUrlData.signedUrl || !uploadUrlData.publicUrl) {
+        toast.error(uploadUrlData.error ?? "获取上传链接失败");
+        return;
+      }
+
+      const uploadRes = await fetch(uploadUrlData.signedUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+        },
+        body: file,
+      });
+
+      if (!uploadRes.ok) {
+        toast.error("上传图片失败");
+        return;
+      }
+
+      setShopForm((current) => ({
+        ...current,
+        ...(kind === "hero"
+          ? { heroImageUrl: uploadUrlData.publicUrl }
+          : { logoUrl: uploadUrlData.publicUrl }),
+      }));
+
+      toast.success(kind === "hero" ? "首页图片已上传" : "Logo 已上传");
+    } catch {
+      toast.error("上传失败，请稍后重试");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const showShops = mode === "all" || mode === "shops";
   const showStaff = mode === "all" || mode === "staff";
 
@@ -160,7 +245,7 @@ export default function AdminManagementPanel({
           <section className="rounded-2xl border bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">新增店铺</h2>
             <p className="mt-1 text-sm text-gray-500">
-              管理员可以直接新增店铺资料，系统会写入 `Shop` 表并立即出现在平台中。
+              管理员可以直接新增店铺资料，系统会写入 `Shop` 表并立刻出现在平台中。
             </p>
 
             <form onSubmit={handleCreateShop} className="mt-5 grid gap-4 md:grid-cols-2">
@@ -210,6 +295,47 @@ export default function AdminManagementPanel({
               </div>
 
               <div>
+                <Label htmlFor="shop-type">店铺类型</Label>
+                <select
+                  id="shop-type"
+                  value={shopForm.shopType}
+                  onChange={(event) =>
+                    setShopForm((current) => ({
+                      ...current,
+                      shopType: event.target.value as "PRODUCT" | "SERVICE" | "HYBRID",
+                    }))
+                  }
+                  className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="PRODUCT">PRODUCT</option>
+                  <option value="SERVICE">SERVICE</option>
+                  <option value="HYBRID">HYBRID</option>
+                </select>
+              </div>
+
+              <div>
+                <Label htmlFor="checkout-mode">结算模式</Label>
+                <select
+                  id="checkout-mode"
+                  value={shopForm.checkoutMode}
+                  onChange={(event) =>
+                    setShopForm((current) => ({
+                      ...current,
+                      checkoutMode: event.target.value as
+                        | "DELIVERY"
+                        | "BOOKING"
+                        | "FLEXIBLE",
+                    }))
+                  }
+                  className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="DELIVERY">DELIVERY</option>
+                  <option value="BOOKING">BOOKING</option>
+                  <option value="FLEXIBLE">FLEXIBLE</option>
+                </select>
+              </div>
+
+              <div>
                 <Label htmlFor="shop-hero-title">首页主标题</Label>
                 <Input
                   id="shop-hero-title"
@@ -254,6 +380,94 @@ export default function AdminManagementPanel({
                     }))
                   }
                   placeholder="https://..."
+                />
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          void uploadShopAsset(file, "hero");
+                        }
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                    {uploadingHero ? "上传中..." : "上传首页图片"}
+                  </label>
+                  {shopForm.heroImageUrl ? (
+                    <div className="relative h-16 w-24 overflow-hidden rounded-md border bg-muted">
+                      <Image
+                        src={shopForm.heroImageUrl}
+                        alt="Hero preview"
+                        fill
+                        className="object-cover"
+                        sizes="96px"
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="shop-logo-url">店铺 Logo URL</Label>
+                <Input
+                  id="shop-logo-url"
+                  className="mt-2"
+                  value={shopForm.logoUrl}
+                  onChange={(event) =>
+                    setShopForm((current) => ({
+                      ...current,
+                      logoUrl: event.target.value,
+                    }))
+                  }
+                  placeholder="https://..."
+                />
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          void uploadShopAsset(file, "logo");
+                        }
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                    {uploadingLogo ? "上传中..." : "上传店铺 Logo"}
+                  </label>
+                  {shopForm.logoUrl ? (
+                    <div className="relative h-14 w-14 overflow-hidden rounded-full border bg-muted">
+                      <Image
+                        src={shopForm.logoUrl}
+                        alt="Logo preview"
+                        fill
+                        className="object-cover"
+                        sizes="56px"
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="homepage-variant">首页样式代号</Label>
+                <Input
+                  id="homepage-variant"
+                  className="mt-2"
+                  value={shopForm.homepageVariant}
+                  onChange={(event) =>
+                    setShopForm((current) => ({
+                      ...current,
+                      homepageVariant: event.target.value,
+                    }))
+                  }
+                  placeholder="例如：classic / service / minimal"
                 />
               </div>
 
@@ -306,6 +520,70 @@ export default function AdminManagementPanel({
                 />
               </div>
 
+              <div>
+                <Label htmlFor="theme-primary">主题主色</Label>
+                <Input
+                  id="theme-primary"
+                  className="mt-2"
+                  value={shopForm.themePrimary}
+                  onChange={(event) =>
+                    setShopForm((current) => ({
+                      ...current,
+                      themePrimary: event.target.value,
+                    }))
+                  }
+                  placeholder="例如：#991b1b"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="theme-secondary">主题次色</Label>
+                <Input
+                  id="theme-secondary"
+                  className="mt-2"
+                  value={shopForm.themeSecondary}
+                  onChange={(event) =>
+                    setShopForm((current) => ({
+                      ...current,
+                      themeSecondary: event.target.value,
+                    }))
+                  }
+                  placeholder="例如：#f59e0b"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="theme-accent">强调色</Label>
+                <Input
+                  id="theme-accent"
+                  className="mt-2"
+                  value={shopForm.themeAccent}
+                  onChange={(event) =>
+                    setShopForm((current) => ({
+                      ...current,
+                      themeAccent: event.target.value,
+                    }))
+                  }
+                  placeholder="例如：#ef4444"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="theme-surface">背景/表面色</Label>
+                <Input
+                  id="theme-surface"
+                  className="mt-2"
+                  value={shopForm.themeSurface}
+                  onChange={(event) =>
+                    setShopForm((current) => ({
+                      ...current,
+                      themeSurface: event.target.value,
+                    }))
+                  }
+                  placeholder="例如：#fff7ed"
+                />
+              </div>
+
               <div className="md:col-span-2">
                 <Button
                   type="submit"
@@ -347,6 +625,8 @@ export default function AdminManagementPanel({
                   ) : null}
 
                   <div className="mt-3 grid gap-2 text-sm text-gray-600 sm:grid-cols-2 xl:grid-cols-4">
+                    <p>店铺类型：{shop.shopType}</p>
+                    <p>结算模式：{shop.checkoutMode}</p>
                     <p>WhatsApp：{shop.whatsappPhone ?? "未设置"}</p>
                     <p>
                       Telegram：
@@ -354,6 +634,8 @@ export default function AdminManagementPanel({
                         ? `@${shop.telegramUsername.replace(/^@+/, "")}`
                         : "未设置"}
                     </p>
+                    <p>主题主色：{shop.themePrimary ?? "未设置"}</p>
+                    <p>首页样式：{shop.homepageVariant ?? "默认"}</p>
                     <p>商品：{shop._count.products}</p>
                     <p>分类：{shop._count.categories}</p>
                     <p>订单：{shop._count.orders}</p>

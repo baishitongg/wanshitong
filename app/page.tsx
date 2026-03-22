@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Store } from "lucide-react";
 import Navbar from "@/components/Navbar";
@@ -30,7 +31,7 @@ export default async function PlatformLandingPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 py-16 md:px-20">
+      <section className="mx-auto max-w-7xl px-4 py-16 md:px-10 xl:px-12">
         <div>
           <h2 className="text-2xl font-bold">店铺入口</h2>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -38,7 +39,7 @@ export default async function PlatformLandingPage() {
           </p>
         </div>
 
-        <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {shopCards.map((shop) => (
             <Link
               key={shop.id}
@@ -46,7 +47,19 @@ export default async function PlatformLandingPage() {
               className="group rounded-3xl border bg-card p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-red-300 hover:shadow-lg"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-700">
-                <Store className="h-6 w-6" />
+                {shop.logoUrl ? (
+                  <div className="relative h-10 w-10 overflow-hidden rounded-xl">
+                    <Image
+                      src={shop.logoUrl}
+                      alt={`${shop.name} logo`}
+                      fill
+                      className="object-cover"
+                      sizes="40px"
+                    />
+                  </div>
+                ) : (
+                  <Store className="h-6 w-6" />
+                )}
               </div>
               <h3 className="mt-5 text-xl font-semibold">{shop.name}</h3>
               <p className="mt-2 text-sm text-muted-foreground">

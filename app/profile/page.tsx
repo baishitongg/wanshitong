@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import { Button } from "@/components/ui/button";
@@ -44,8 +45,10 @@ import {
   Home,
   Briefcase,
   CheckCircle2,
+  ArrowLeft,
 } from "lucide-react";
 import type { Address, Order } from "@/types";
+import { buildShopHref } from "@/lib/shops";
 
 type ContactChannel = "PHONE" | "TELEGRAM";
 
@@ -872,6 +875,7 @@ function OrdersTab() {
 export default function ProfilePage() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [telegramUsername, setTelegramUsername] = useState("");
   const [preferredChannel, setPreferredChannel] =
@@ -884,6 +888,10 @@ export default function ProfilePage() {
   }, [status, router]);
 
   const user = session?.user as SessionUser | undefined;
+  const shopSlug = useMemo(() => {
+    const value = searchParams.get("shop")?.trim();
+    return value ? value : undefined;
+  }, [searchParams]);
 
   useEffect(() => {
     setTelegramUsername(user?.telegramUsername ?? "");
@@ -965,8 +973,21 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
+      <Navbar
+        shopSlug={shopSlug}
+        homeHref={shopSlug ? buildShopHref(shopSlug) : "/"}
+      />
       <div className="container mx-auto px-6 md:px-20 py-8 max-w-2xl">
+        {shopSlug && (
+          <Link
+            href={buildShopHref(shopSlug)}
+            className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            返回店铺首页
+          </Link>
+        )}
+
         <div className="space-y-4 mb-8">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4 min-w-0">

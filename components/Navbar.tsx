@@ -4,20 +4,21 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import {
-  ShoppingCart,
-  Store,
-  LayoutDashboard,
-  Settings,
-  LogOut,
-  LogIn,
-  User,
   Headset,
+  LayoutDashboard,
+  LogIn,
+  LogOut,
   MessageCircle,
   Send,
+  Settings,
+  ShoppingCart,
+  Store,
+  User,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,7 +26,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import CartDrawer from "@/components/CartDrawer";
 import { buildShopHref } from "@/lib/shops";
@@ -42,13 +42,16 @@ type SessionUser = {
 type NavbarProps = {
   shopSlug?: string;
   shopName?: string;
+  homeHref?: string;
 };
 
 const SUPPORT_WHATSAPP = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP ?? "";
 const SUPPORT_TELEGRAM = process.env.NEXT_PUBLIC_SUPPORT_TELEGRAM ?? "";
 
 function buildSupportWhatsAppLink() {
-  const text = encodeURIComponent("您好，我想咨询一下万事通的平台商品或订单服务。");
+  const text = encodeURIComponent(
+    "您好，我想咨询一下万事通的平台商品或订单服务。",
+  );
   return `https://wa.me/${SUPPORT_WHATSAPP}?text=${text}`;
 }
 
@@ -56,7 +59,11 @@ function buildSupportTelegramLink() {
   return `https://t.me/${SUPPORT_TELEGRAM.replace(/^@+/, "")}`;
 }
 
-export default function Navbar({ shopSlug, shopName }: NavbarProps) {
+export default function Navbar({
+  shopSlug,
+  shopName,
+  homeHref = "/",
+}: NavbarProps) {
   const { data: session, status } = useSession();
   const user = session?.user as SessionUser | undefined;
   const role = user?.role;
@@ -65,6 +72,7 @@ export default function Navbar({ shopSlug, shopName }: NavbarProps) {
   const shopCart = useShopCart(shopSlug ?? "__platform__");
   const { items, fetchCart, resetCart } = shopCart;
   const showCart = Boolean(shopSlug);
+  const guideHref = shopSlug ? buildShopHref(shopSlug, "/how-to-use") : null;
 
   const totalItems = useMemo(
     () => items.reduce((sum, item) => sum + item.quantity, 0),
@@ -85,42 +93,42 @@ export default function Navbar({ shopSlug, shopName }: NavbarProps) {
     <>
       <header className="sticky top-0 z-50 w-full border-b border-red-900/30 bg-red-950 text-white">
         <div className="container mx-auto flex h-16 items-center justify-between px-6 md:px-20">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center">
             <Link
-              href="/"
-              className="flex items-center gap-2 font-bold text-xl text-white"
+              href={homeHref}
+              className="flex items-center gap-2 text-xl font-bold text-white"
             >
               <Store className="h-6 w-6 text-red-300" />
               <span className="tracking-wide">万事通</span>
             </Link>
-
-            {shopSlug && (
-              <Link
-                href={buildShopHref(shopSlug)}
-                className="hidden rounded-full border border-red-800/70 px-3 py-1 text-sm text-red-100 transition-colors hover:border-red-500 hover:text-white md:inline-flex"
-              >
-                {shopName ?? shopSlug}
-              </Link>
-            )}
           </div>
 
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <Link href="/" className="text-red-200 hover:text-white transition-colors">
+          <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
+            <Link href="/" className="text-red-200 transition-colors hover:text-white">
               平台主页
             </Link>
 
             {shopSlug && (
               <Link
                 href={buildShopHref(shopSlug)}
-                className="text-red-200 hover:text-white transition-colors"
+                className="text-red-200 transition-colors hover:text-white"
               >
                 店铺主页
               </Link>
             )}
 
+            {guideHref && (
+              <Link
+                href={guideHref}
+                className="text-red-200 transition-colors hover:text-white"
+              >
+                使用说明
+              </Link>
+            )}
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="inline-flex items-center gap-2 text-red-200 hover:text-white transition-colors outline-none">
+                <button className="inline-flex items-center gap-2 text-red-200 outline-none transition-colors hover:text-white">
                   <Headset className="h-4 w-4" />
                   客服
                 </button>
@@ -166,7 +174,19 @@ export default function Navbar({ shopSlug, shopName }: NavbarProps) {
                 </Button>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuContent align="end" className="w-56">
+                {guideHref && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href={guideHref} className="flex items-center gap-2">
+                        <ShoppingCart className="h-4 w-4" />
+                        使用说明
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+
                 <DropdownMenuItem asChild>
                   <a
                     href={buildSupportWhatsAppLink()}
@@ -203,7 +223,7 @@ export default function Navbar({ shopSlug, shopName }: NavbarProps) {
                 <ShoppingCart className="h-5 w-5" />
 
                 {totalItems > 0 && (
-                  <Badge className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full border-0 bg-yellow-400 p-0 text-xs font-bold text-red-950">
+                  <Badge className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border-0 bg-yellow-400 p-0 text-xs font-bold text-red-950">
                     {totalItems}
                   </Badge>
                 )}
@@ -229,16 +249,17 @@ export default function Navbar({ shopSlug, shopName }: NavbarProps) {
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-2 py-1.5">
                     <p className="text-sm font-medium">{user?.name ?? "用户"}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {user?.phone ?? ""}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{user?.phone ?? ""}</p>
                   </div>
 
                   <DropdownMenuSeparator />
 
                   {(!role || role === "CUSTOMER") && (
                     <DropdownMenuItem asChild>
-                      <Link href="/profile" className="flex items-center gap-2">
+                      <Link
+                        href={shopSlug ? `/profile?shop=${shopSlug}` : "/profile"}
+                        className="flex items-center gap-2"
+                      >
                         <User className="h-4 w-4" />
                         我的账户
                       </Link>
@@ -256,10 +277,7 @@ export default function Navbar({ shopSlug, shopName }: NavbarProps) {
 
                   {role === "ADMIN" && (
                     <DropdownMenuItem asChild>
-                      <Link
-                        href="/admin/dashboard"
-                        className="flex items-center gap-2"
-                      >
+                      <Link href="/admin" className="flex items-center gap-2">
                         <Settings className="h-4 w-4" />
                         平台管理
                       </Link>

@@ -90,12 +90,18 @@ export default function ProductCard({
       </div>
 
       <div className="flex flex-1 flex-col p-3 bg-white">
-        <div className="min-h-[3.5rem]">
-          <h3 className="font-medium text-sm leading-tight line-clamp-2 text-foreground group-hover:text-primary transition-colors min-h-[2.5rem]">
+        <div className="min-h-[5rem]">
+          <h3
+            className="font-medium text-sm leading-tight line-clamp-3 text-foreground group-hover:text-primary transition-colors min-h-[3.75rem]"
+            title={product.name}
+          >
             {product.name}
           </h3>
           {product.description && (
-            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5 min-h-4">
+            <p
+              className="mt-0.5 min-h-4 text-xs text-muted-foreground line-clamp-1"
+              title={product.description}
+            >
               {product.description}
             </p>
           )}

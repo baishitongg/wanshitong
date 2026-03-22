@@ -89,10 +89,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }),
     ],
     callbacks: {
-        async jwt({ token, user }) {
+        async jwt({ token, user, trigger, session }) {
+            const typedToken = token as typeof token & Partial<TokenFields>;
+
             if (user) {
                 const typedUser = user as AuthUser;
-                const typedToken = token as typeof token & Partial<TokenFields>;
 
                 typedToken.id = typedUser.id;
                 typedToken.role = typedUser.role;
@@ -102,6 +103,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 typedToken.preferredContactChannel = typedUser.preferredContactChannel;
                 typedToken.staffShopId = typedUser.staffShopId;
                 typedToken.staffShopSlug = typedUser.staffShopSlug;
+            }
+
+            if (trigger === "update" && session) {
+                const updatedSession = session as Partial<SessionUserFields>;
+
+                if (updatedSession.telegramUsername !== undefined) {
+                    typedToken.telegramUsername = updatedSession.telegramUsername;
+                }
+
+                if (updatedSession.preferredContactChannel !== undefined) {
+                    typedToken.preferredContactChannel =
+                        updatedSession.preferredContactChannel;
+                }
             }
 
             return token;

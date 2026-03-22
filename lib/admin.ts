@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { Role, ShopStatus } from "@prisma/client";
+import { CheckoutMode, Role, ShopStatus, ShopType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/shops";
 
@@ -37,6 +37,14 @@ type CreateShopInput = {
   heroImageUrl?: string | null;
   whatsappPhone?: string | null;
   telegramUsername?: string | null;
+  shopType?: ShopType;
+  checkoutMode?: CheckoutMode;
+  themePrimary?: string | null;
+  themeSecondary?: string | null;
+  themeAccent?: string | null;
+  themeSurface?: string | null;
+  logoUrl?: string | null;
+  homepageVariant?: string | null;
   status?: ShopStatus;
 };
 
@@ -82,6 +90,14 @@ export async function createShop(input: CreateShopInput) {
       whatsappPhone: input.whatsappPhone?.trim() || null,
       telegramUsername:
         input.telegramUsername?.trim().replace(/^@+/, "") || null,
+      shopType: input.shopType ?? "PRODUCT",
+      checkoutMode: input.checkoutMode ?? "DELIVERY",
+      themePrimary: input.themePrimary?.trim() || null,
+      themeSecondary: input.themeSecondary?.trim() || null,
+      themeAccent: input.themeAccent?.trim() || null,
+      themeSurface: input.themeSurface?.trim() || null,
+      logoUrl: input.logoUrl?.trim() || null,
+      homepageVariant: input.homepageVariant?.trim() || null,
       status: input.status ?? "ACTIVE",
     },
   });

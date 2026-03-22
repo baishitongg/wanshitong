@@ -17,9 +17,13 @@ export const BUCKET_NAME = "product";
 /**
  * Generate a signed upload URL for direct browser upload.
  */
-export async function getSignedUploadUrl(fileName: string) {
+export async function getSignedUploadUrl(fileName: string, folder = "products") {
     const safeFileName = fileName.replace(/\s+/g, "-");
-    const path = `products/${Date.now()}-${safeFileName}`;
+    const safeFolder = folder
+        .trim()
+        .replace(/^\/+|\/+$/g, "")
+        .replace(/[^a-zA-Z0-9/_-]/g, "") || "products";
+    const path = `${safeFolder}/${Date.now()}-${safeFileName}`;
 
     const { data, error } = await supabaseAdmin.storage
         .from(BUCKET_NAME)

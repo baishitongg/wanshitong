@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -9,11 +9,20 @@ import Navbar from "@/components/Navbar";
 import { useShopCart } from "@/lib/store/cartStore";
 import { buildShopHref } from "@/lib/shops";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   ShoppingCart,
@@ -61,7 +70,7 @@ interface Props {
 }
 
 export default function ShopCartPage({ shopSlug, shopName }: Props) {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { items, loading, fetchCart, updateQuantity, removeItem, clearCart } =
@@ -75,6 +84,9 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [selectedContactChannel, setSelectedContactChannel] =
     useState<ContactChannel>("PHONE");
+  const [telegramDialogOpen, setTelegramDialogOpen] = useState(false);
+  const [telegramInput, setTelegramInput] = useState("");
+  const [savingTelegram, setSavingTelegram] = useState(false);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -97,6 +109,10 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
       setSelectedContactChannel("PHONE");
     }
   }, [user?.telegramUsername, selectedContactChannel]);
+
+  useEffect(() => {
+    setTelegramInput(user?.telegramUsername?.replace(/^@+/, "") ?? "");
+  }, [user?.telegramUsername]);
 
   const fetchAddresses = async () => {
     setAddressesLoading(true);
@@ -130,10 +146,8 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
       return matchingIds;
     }
 
-    if (requestedSelectedIds.length > 0) {
-      return [];
-    }
-
+    // If the original drawer selection is no longer valid after cart edits,
+    // fall back to the current cart items so checkout doesn't get stuck.
     return items.map((item) => item.productId);
   }, [items, requestedSelectedIds]);
 
@@ -149,6 +163,52 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
     (sum, item) => sum + Number(item.product.price) * item.quantity,
     0,
   );
+
+  const handleTelegramClick = () => {
+    if (user?.telegramUsername?.trim()) {
+      setSelectedContactChannel("TELEGRAM");
+      return;
+    }
+
+    setTelegramDialogOpen(true);
+  };
+
+  const handleSaveTelegram = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSavingTelegram(true);
+
+    try {
+      const res = await fetch("/api/profile/telegram", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          telegramUsername: telegramInput,
+        }),
+      });
+
+      const data = (await res.json()) as {
+        error?: string;
+        telegramUsername?: string | null;
+      };
+
+      if (!res.ok) {
+        toast.error(data.error ?? "Telegram 用户名保存失败");
+        return;
+      }
+
+      await update({
+        telegramUsername: data.telegramUsername,
+      });
+
+      setSelectedContactChannel("TELEGRAM");
+      setTelegramDialogOpen(false);
+      toast.success("Telegram 用户名已更新");
+    } catch {
+      toast.error("网络错误，请重试");
+    } finally {
+      setSavingTelegram(false);
+    }
+  };
 
   const handlePlaceOrder = async () => {
     if (items.length === 0) return;
@@ -211,6 +271,14 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
     <div className="min-h-screen bg-background">
       <Navbar shopSlug={shopSlug} shopName={shopName} />
       <div className="container mx-auto px-6 md:px-20 py-8 max-w-3xl">
+        <Link
+          href={buildShopHref(shopSlug)}
+          className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          返回店铺首页
+        </Link>
+
         <div className="flex items-center gap-3 mb-8">
           <ShoppingCart className="h-6 w-6 text-red-600" />
           <h1 className="text-2xl font-bold">购物车</h1>
@@ -242,76 +310,87 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
                 </span>
               </div>
 
-              {items.map((item) => (
+              {selectedProductIds.length < items.length && selectedItems.length > 0 && (
+                <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                  还有 {items.length - selectedItems.length} 件商品保留在购物车中，本次不会结算。
+                </div>
+              )}
+
+              {selectedItems.map((item) => (
                 <Card key={item.productId}>
-                  <CardContent className="py-4 flex items-center gap-4">
-                    <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-muted shrink-0">
-                      {item.product.imageUrl ? (
-                        <Image
-                          src={item.product.imageUrl}
-                          alt={item.product.name}
-                          fill
-                          className="object-cover"
-                          sizes="64px"
-                        />
-                      ) : (
-                        <div className="h-full flex items-center justify-center">
-                          <Package className="h-6 w-6 text-muted-foreground/40" />
+                  <CardContent className="py-4 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-muted shrink-0">
+                        {item.product.imageUrl ? (
+                          <Image
+                            src={item.product.imageUrl}
+                            alt={item.product.name}
+                            fill
+                            className="object-cover"
+                            sizes="64px"
+                          />
+                        ) : (
+                          <div className="h-full flex items-center justify-center">
+                            <Package className="h-6 w-6 text-muted-foreground/40" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium leading-5 line-clamp-2">
+                              {item.product.name}
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-red-600">
+                              RM{Number(item.product.price).toFixed(2)}
+                            </p>
+                          </div>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => removeItem(item.productId)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
-                      )}
+                      </div>
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{item.product.name}</p>
-                      <p className="text-sm text-red-600 font-semibold mt-0.5">
-                        RM{Number(item.product.price).toFixed(2)}
+                    <div className="flex items-center justify-between gap-3 border-t pt-3">
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() =>
+                            updateQuantity(item.productId, item.quantity - 1)
+                          }
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="w-6 text-center text-sm font-medium">
+                          {item.quantity}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() =>
+                            updateQuantity(item.productId, item.quantity + 1)
+                          }
+                          disabled={item.quantity >= item.product.stock}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+
+                      <p className="min-w-0 text-right text-base font-bold text-foreground">
+                        RM{(Number(item.product.price) * item.quantity).toFixed(2)}
                       </p>
-                      {!selectedProductIds.includes(item.productId) && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          保留在购物车中，本次不会结算
-                        </p>
-                      )}
                     </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() =>
-                          updateQuantity(item.productId, item.quantity - 1)
-                        }
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-6 text-center text-sm font-medium">
-                        {item.quantity}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() =>
-                          updateQuantity(item.productId, item.quantity + 1)
-                        }
-                        disabled={item.quantity >= item.product.stock}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-
-                    <p className="font-bold text-sm w-20 text-right shrink-0">
-                      RM{(Number(item.product.price) * item.quantity).toFixed(2)}
-                    </p>
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
-                      onClick={() => removeItem(item.productId)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </CardContent>
                 </Card>
               ))}
@@ -323,7 +402,7 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
                   <MapPin className="h-4 w-4 text-red-600" /> 收货地址
                 </h2>
                 <Link
-                  href="/profile"
+                  href={`/profile?shop=${shopSlug}`}
                   className="text-xs text-red-600 hover:underline flex items-center gap-1"
                 >
                   管理地址 <ChevronRight className="h-3 w-3" />
@@ -338,7 +417,7 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
                 <div className="border-2 border-dashed rounded-xl p-6 flex flex-col items-center gap-3 text-muted-foreground">
                   <AlertCircle className="h-8 w-8 text-yellow-500 opacity-70" />
                   <p className="text-sm font-medium">还没有收货地址</p>
-                  <Link href="/profile">
+                  <Link href={`/profile?shop=${shopSlug}`}>
                     <Button
                       size="sm"
                       className="bg-red-700 hover:bg-red-600 text-white flex items-center gap-2"
@@ -460,8 +539,7 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
                           ? "bg-red-700 hover:bg-red-600 text-white"
                           : ""
                       }
-                      onClick={() => setSelectedContactChannel("TELEGRAM")}
-                      disabled={!user?.telegramUsername}
+                      onClick={handleTelegramClick}
                     >
                       <Send className="h-4 w-4 mr-2" />
                       Telegram
@@ -510,6 +588,54 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
           </div>
         )}
       </div>
+
+      <Dialog open={telegramDialogOpen} onOpenChange={setTelegramDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>还没有设置 Telegram</DialogTitle>
+            <DialogDescription>
+              您当前还没有填写 Telegram 用户名。现在设置后，本次订单就可以使用 Telegram 作为首选联系方式。
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="space-y-4" onSubmit={handleSaveTelegram}>
+            <div className="space-y-2">
+              <Label htmlFor="telegram-username">Telegram 用户名</Label>
+              <Input
+                id="telegram-username"
+                placeholder="例如：wanshitong_user"
+                value={telegramInput}
+                onChange={(e) => setTelegramInput(e.target.value)}
+                disabled={savingTelegram}
+              />
+              <p className="text-xs text-muted-foreground">
+                请输入 Telegram 用户名，不需要填写 @。
+              </p>
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setTelegramDialogOpen(false)}
+                disabled={savingTelegram}
+              >
+                稍后再说
+              </Button>
+              <Button
+                type="submit"
+                className="bg-red-700 hover:bg-red-600 text-white"
+                disabled={savingTelegram}
+              >
+                {savingTelegram && (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                )}
+                保存并使用 Telegram
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

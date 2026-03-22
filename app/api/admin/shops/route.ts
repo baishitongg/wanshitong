@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ShopStatus } from "@prisma/client";
+import { CheckoutMode, ShopStatus, ShopType } from "@prisma/client";
 import { createShop, requireAdminUser } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/shops";
@@ -40,6 +40,14 @@ export async function POST(req: Request) {
       heroImageUrl?: string | null;
       whatsappPhone?: string | null;
       telegramUsername?: string | null;
+      shopType?: ShopType;
+      checkoutMode?: CheckoutMode;
+      themePrimary?: string | null;
+      themeSecondary?: string | null;
+      themeAccent?: string | null;
+      themeSurface?: string | null;
+      logoUrl?: string | null;
+      homepageVariant?: string | null;
       status?: ShopStatus;
     };
 
@@ -56,6 +64,14 @@ export async function POST(req: Request) {
       heroImageUrl: body.heroImageUrl,
       whatsappPhone: body.whatsappPhone,
       telegramUsername: body.telegramUsername,
+      shopType: body.shopType,
+      checkoutMode: body.checkoutMode,
+      themePrimary: body.themePrimary,
+      themeSecondary: body.themeSecondary,
+      themeAccent: body.themeAccent,
+      themeSurface: body.themeSurface,
+      logoUrl: body.logoUrl,
+      homepageVariant: body.homepageVariant,
       status: body.status,
     });
 

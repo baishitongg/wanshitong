@@ -172,6 +172,7 @@ export function getShopLandingCards(shops: Shop[]) {
     slug: shop.slug,
     name: shop.name,
     description: shop.description,
+    logoUrl: shop.logoUrl,
     href: buildShopHref(shop.slug),
   }));
 }

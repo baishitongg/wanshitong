@@ -24,24 +24,42 @@ export default async function ShopHomePage({ params }: Props) {
     <div className="min-h-screen bg-background">
       <Navbar shopSlug={shop.slug} shopName={shop.name} />
 
-      <section className="relative h-[420px] overflow-hidden bg-gradient-to-br from-red-950 via-red-900 to-rose-800">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-red-700/30 via-transparent to-transparent" />
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center space-y-4 px-4">
-          <span className="inline-block text-xs font-semibold uppercase tracking-widest text-red-300/80 mb-2">
-            Wanshitong Platform
-          </span>
-          <h1 className="text-4xl md:text-6xl font-bold text-white">
-            {shop.heroTitle ?? shop.name}
-          </h1>
-          <p className="text-lg md:text-xl text-red-100/80 max-w-xl">
-            {shop.heroSubtitle ?? shop.description ?? "探索店铺商品与分类。"}
-          </p>
-          <Link
-            href="#products"
-            className="mt-4 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-red-600 hover:bg-red-500 text-white font-medium transition-colors"
-          >
-            立即选购
-          </Link>
+      <section className="relative overflow-hidden bg-gradient-to-br from-red-950 via-red-900 to-rose-800">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.14),_transparent_36%)]" />
+        {shop.heroImageUrl ? (
+          <div
+            className="absolute inset-0 opacity-15 bg-cover bg-center"
+            style={{ backgroundImage: `url(${shop.heroImageUrl})` }}
+          />
+        ) : null}
+
+        <div className="relative container mx-auto px-6 py-10 md:px-20 md:py-14">
+          <div className="max-w-2xl text-white">
+            <span className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-red-100/85">
+              Wanshitong Platform
+            </span>
+            <h1 className="mt-4 text-4xl font-bold leading-tight md:text-5xl">
+              {shop.heroTitle ?? shop.name}
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-red-50/85 md:text-lg md:leading-8">
+              {shop.heroSubtitle ?? shop.description ?? "探索店铺商品与分类。"}
+            </p>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="#products"
+                className="inline-flex items-center justify-center rounded-full bg-red-500 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-400"
+              >
+                立即选购
+              </Link>
+              <Link
+                href={`/shops/${shop.slug}/how-to-use`}
+                className="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/15"
+              >
+                使用说明
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -49,9 +67,9 @@ export default async function ShopHomePage({ params }: Props) {
         <>
           <MobileCategoryDropdown shopSlug={shop.slug} categories={categories} />
 
-          <div className="hidden md:block border-b border-border bg-background">
-            <div className="container mx-auto px-6 md:px-20 py-3 flex items-center gap-4 overflow-x-auto whitespace-nowrap no-scrollbar">
-              <span className="text-xs text-muted-foreground font-medium flex-shrink-0 uppercase tracking-wide">
+          <div className="hidden border-b border-border bg-background md:block">
+            <div className="container mx-auto flex items-center gap-4 overflow-x-auto whitespace-nowrap px-6 py-3 no-scrollbar md:px-20">
+              <span className="flex-shrink-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 分类
               </span>
 
@@ -59,7 +77,7 @@ export default async function ShopHomePage({ params }: Props) {
                 <Link
                   key={cat.id}
                   href={`/shops/${shop.slug}/category/${cat.id}`}
-                  className="flex-shrink-0 text-sm text-muted-foreground hover:text-red-600 transition-colors flex items-center gap-0.5 whitespace-nowrap"
+                  className="flex flex-shrink-0 items-center gap-0.5 whitespace-nowrap text-sm text-muted-foreground transition-colors hover:text-red-600"
                 >
                   {cat.name}
                   <ChevronRight className="h-3 w-3 opacity-40" />
@@ -70,10 +88,10 @@ export default async function ShopHomePage({ params }: Props) {
         </>
       )}
 
-      <section id="products" className="container mx-auto px-6 md:px-20 py-10 pb-20">
+      <section id="products" className="container mx-auto px-6 py-10 pb-20 md:px-20">
         <Suspense
           fallback={
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="aspect-square rounded-xl bg-muted animate-pulse" />
               ))}

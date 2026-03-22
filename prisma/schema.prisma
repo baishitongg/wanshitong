@@ -38,6 +38,14 @@ model Shop {
   updatedAt        DateTime       @updatedAt
   whatsappPhone    String?
   telegramUsername String?
+  shopType         ShopType       @default(PRODUCT)
+  checkoutMode     CheckoutMode   @default(DELIVERY)
+  themePrimary     String?
+  themeSecondary   String?
+  themeAccent      String?
+  themeSurface     String?
+  logoUrl          String?
+  homepageVariant  String?
   carts            Cart[]
   categories       Category[]
   orders           Order[]
@@ -103,6 +111,14 @@ model Product {
   updatedAt   DateTime    @updatedAt
   attributes  Json?
   shopId      String
+  itemType    ItemType    @default(PHYSICAL)
+  fulfillmentType FulfillmentType @default(DELIVERY)
+  requiresScheduling Boolean @default(false)
+  durationMinutes Int?
+  minAdvanceHours Int?
+  maxAdvanceDays Int?
+  requiresAddress Boolean @default(true)
+  requiresContact Boolean @default(true)
   cartItems   CartItem[]
   orderItems  OrderItem[]
   category    Category    @relation(fields: [categoryId], references: [id])
@@ -145,6 +161,7 @@ model Order {
   guestSession            String?
   status                  OrderStatus    @default(PENDING)
   totalAmount             Decimal        @db.Decimal(10, 2)
+  flowType                OrderFlowType  @default(DELIVERY)
   customerName            String?
   customerPhone           String?
   notes                   String?
@@ -160,6 +177,12 @@ model Order {
   deliveryStreet          String?
   telegramUsername        String?
   preferredContactChannel ContactChannel @default(PHONE)
+  scheduledDate           DateTime?
+  scheduledStartTime      DateTime?
+  scheduledEndTime        DateTime?
+  serviceLocationType     ServiceLocationType?
+  serviceAddressText      String?
+  bookingReference        String?
   shopId                  String
   address                 Address?       @relation(fields: [addressId], references: [id])
   shop                    Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
@@ -171,13 +194,18 @@ model Order {
 }
 
 model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String
-  productId String
-  quantity  Int
-  unitPrice Decimal @db.Decimal(10, 2)
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product   Product @relation(fields: [productId], references: [id])
+  id              String           @id @default(uuid())
+  orderId         String
+  productId       String
+  quantity        Int
+  unitPrice       Decimal          @db.Decimal(10, 2)
+  itemType        ItemType?
+  fulfillmentType FulfillmentType?
+  scheduledDate   DateTime?
+  scheduledStart  DateTime?
+  scheduledEnd    DateTime?
+  order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         Product          @relation(fields: [productId], references: [id])
 }
 
 enum Role {
@@ -202,4 +230,39 @@ enum ContactChannel {
 enum ShopStatus {
   ACTIVE
   INACTIVE
+}
+
+enum ShopType {
+  PRODUCT
+  SERVICE
+  HYBRID
+}
+
+enum CheckoutMode {
+  DELIVERY
+  BOOKING
+  FLEXIBLE
+}
+
+enum ItemType {
+  PHYSICAL
+  SERVICE
+}
+
+enum FulfillmentType {
+  DELIVERY
+  PICKUP
+  BOOKING
+}
+
+enum OrderFlowType {
+  DELIVERY
+  PICKUP
+  BOOKING
+}
+
+enum ServiceLocationType {
+  ONSITE
+  CUSTOMER_PLACE
+  ONLINE
 }

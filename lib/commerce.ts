@@ -233,6 +233,7 @@ export async function createOrderFromCart(input: CreateOrderInput) {
       data: {
         shopId: input.shopId,
         userId: input.userId,
+        flowType: "DELIVERY",
         customerName: input.customerName ?? null,
         customerPhone: resolvedPhone || null,
         telegramUsername: resolvedTelegram || null,
@@ -252,6 +253,8 @@ export async function createOrderFromCart(input: CreateOrderInput) {
             productId: item.productId,
             quantity: item.quantity,
             unitPrice: item.product.price,
+            itemType: item.product.itemType,
+            fulfillmentType: item.product.fulfillmentType,
           })),
         },
       },
