@@ -5,6 +5,8 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import LoadingScreen from "@/components/LoadingScreen";
+import StaffOrdersTab from "@/components/staff/StaffOrdersTab";
+import StaffProductsTab from "@/components/staff/StaffProductsTab";
 import ProductCard from "@/components/ProductCard";
 import { getSocket, SOCKET_EVENTS } from "@/lib/socket";
 import { Button } from "@/components/ui/button";
@@ -47,8 +49,14 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
-import type { Order, OrderStatus, Product, Category } from "@/types";
+import type { Order, OrderStatus, Product, Category, ShopType } from "@/types";
+import {
+  normalizeServiceAttributes,
+  type ServiceAvailabilityDay,
+  type ServiceWeekday,
+} from "@/lib/service-booking";
 
 type SessionUser = {
   role?: string;
@@ -285,6 +293,50 @@ function OrdersTab() {
   const cleanedTelegram =
     selectedOrder?.telegramUsername?.trim().replace(/^@+/, "") ?? "";
 
+  function formatDateTime(value?: string | null) {
+    if (!value) return null;
+    return new Date(value).toLocaleString("zh-CN", {
+      month: "numeric",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  }
+
+  function formatTime(value?: string | null) {
+    if (!value) return null;
+    return new Date(value).toLocaleTimeString("zh-CN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  }
+
+  function getOrderScheduleSummary(order: Order) {
+    const scheduledItems = order.items.filter(
+      (item) => item.scheduledStart && item.scheduledEnd,
+    );
+
+    if (scheduledItems.length === 0) {
+      return null;
+    }
+
+    const firstItem = scheduledItems[0];
+    const startText = formatDateTime(firstItem.scheduledStart);
+    const endText = formatTime(firstItem.scheduledEnd);
+
+    if (!startText || !endText) {
+      return null;
+    }
+
+    if (scheduledItems.length === 1) {
+      return `${startText} - ${endText}`;
+    }
+
+    return `${startText} - ${endText} · 共 ${scheduledItems.length} 个预约项目`;
+  }
+
   if (loading) {
     return (
       <div className="py-20 flex items-center justify-center text-muted-foreground">
@@ -413,6 +465,13 @@ function OrdersTab() {
                       {new Date(order.createdAt).toLocaleString("zh-CN")} · 共{" "}
                       {order.items.length} 件商品
                     </p>
+
+                    {getOrderScheduleSummary(order) && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        预约时间：{getOrderScheduleSummary(order)}
+                      </p>
+                    )}
 
                     {order.deliveryCity && (
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -1116,11 +1175,11 @@ export default function StaffDashboardPage() {
           </TabsList>
 
           <TabsContent value="orders">
-            <OrdersTab />
+            <StaffOrdersTab />
           </TabsContent>
 
           <TabsContent value="products">
-            <ProductsTab />
+            <StaffProductsTab />
           </TabsContent>
         </Tabs>
       </div>

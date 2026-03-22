@@ -1,43 +1,56 @@
 "use client";
 
 import Image from "next/image";
-import { ShoppingCart, Package } from "lucide-react";
+import { Package, ShoppingCart } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useShopCart } from "@/lib/store/cartStore";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import type { Product } from "@/types";
+import type { ShopTheme } from "@/lib/shopTheme";
 
 interface ProductCardProps extends Product {
   shopSlug?: string;
   mode?: "buyer" | "admin";
   onEdit?: (product: Product) => void;
+  theme?: ShopTheme;
 }
 
 export default function ProductCard({
   shopSlug,
   mode = "buyer",
   onEdit,
+  theme,
   ...product
 }: ProductCardProps) {
   const { data: session } = useSession();
   const router = useRouter();
   const { addItem } = useShopCart(shopSlug ?? "__platform__");
+  const isService =
+    product.itemType === "SERVICE" ||
+    product.requiresScheduling ||
+    product.fulfillmentType === "BOOKING";
+  const outOfStock = !isService && product.stock === 0;
 
-  const handleAddToCart = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleBuyerAction = async (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
 
     if (!session?.user) {
-      toast.error("请先登录后再加入购物车");
+      toast.error("请先登录后再继续");
       router.push("/login");
       return;
     }
 
     if (!shopSlug) {
       toast.error("当前商品未绑定店铺上下文");
+      return;
+    }
+
+    if (isService) {
+      router.push(`/shops/${shopSlug}/product/${product.id}`);
       return;
     }
 
@@ -48,6 +61,10 @@ export default function ProductCard({
         price: product.price,
         imageUrl: product.imageUrl,
         stock: product.stock,
+        itemType: product.itemType,
+        fulfillmentType: product.fulfillmentType,
+        requiresScheduling: product.requiresScheduling,
+        requiresAddress: product.requiresAddress,
       },
       1,
     );
@@ -55,11 +72,9 @@ export default function ProductCard({
     toast.success(`已将 ${product.name} 加入购物车`);
   };
 
-  const outOfStock = product.stock === 0;
-
   return (
-    <div className="group flex h-full flex-col bg-white border border-border rounded-xl overflow-hidden hover:shadow-lg hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300">
-      <div className="relative aspect-square bg-white overflow-hidden shrink-0">
+    <div className="group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-white transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg">
+      <div className="relative aspect-square shrink-0 overflow-hidden bg-white">
         {product.imageUrl ? (
           <Image
             src={product.imageUrl}
@@ -69,13 +84,13 @@ export default function ProductCard({
             sizes="(max-width: 768px) 50vw, 25vw"
           />
         ) : (
-          <div className="h-full flex items-center justify-center bg-white">
+          <div className="flex h-full items-center justify-center bg-white">
             <Package className="h-12 w-12 text-muted-foreground/40" />
           </div>
         )}
 
         {outOfStock && (
-          <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center bg-background/70">
             <Badge variant="secondary" className="text-xs">
               已售罄
             </Badge>
@@ -83,23 +98,23 @@ export default function ProductCard({
         )}
 
         {product.category?.name && (
-          <Badge className="absolute top-2 left-2 text-xs bg-background/80 text-foreground border border-border/50 backdrop-blur-sm">
+          <Badge className="absolute left-2 top-2 border border-border/50 bg-background/80 text-xs text-foreground backdrop-blur-sm">
             {product.category.name}
           </Badge>
         )}
       </div>
 
-      <div className="flex flex-1 flex-col p-3 bg-white">
+      <div className="flex flex-1 flex-col bg-white p-3">
         <div className="min-h-[5rem]">
           <h3
-            className="font-medium text-sm leading-tight line-clamp-3 text-foreground group-hover:text-primary transition-colors min-h-[3.75rem]"
+            className="min-h-[3.75rem] line-clamp-3 text-sm font-medium leading-tight text-foreground transition-colors group-hover:text-primary"
             title={product.name}
           >
             {product.name}
           </h3>
           {product.description && (
             <p
-              className="mt-0.5 min-h-4 text-xs text-muted-foreground line-clamp-1"
+              className="mt-0.5 min-h-4 line-clamp-1 text-xs text-muted-foreground"
               title={product.description}
             >
               {product.description}
@@ -108,27 +123,28 @@ export default function ProductCard({
         </div>
 
         <div className="mt-auto flex flex-col gap-2 pt-3">
-          <span className="font-bold text-base text-foreground">
+          <span className="text-base font-bold text-foreground">
             RM{Number(product.price).toFixed(2)}
           </span>
 
           {mode === "buyer" ? (
             <Button
               size="sm"
-              className="h-8 px-3 bg-red-600 hover:bg-red-700 text-white text-xs"
-              onClick={handleAddToCart}
+              className="h-8 px-3 text-xs text-white"
+              style={{ backgroundColor: theme?.secondary ?? "#dc2626" }}
+              onClick={handleBuyerAction}
               disabled={outOfStock}
             >
-              <ShoppingCart className="h-3 w-3 mr-1" />
-              加购
+              <ShoppingCart className="mr-1 h-3 w-3" />
+              {isService ? "选择时段" : "加购"}
             </Button>
           ) : (
             <Button
               size="sm"
               variant="outline"
               className="h-8 px-3 text-xs"
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={(event) => {
+                event.preventDefault();
                 onEdit?.(product as Product);
               }}
             >
@@ -137,8 +153,8 @@ export default function ProductCard({
           )}
         </div>
 
-        <p className="pt-2 text-xs text-muted-foreground min-h-5">
-          {!outOfStock ? `库存 ${product.stock} 件` : ""}
+        <p className="min-h-5 pt-2 text-xs text-muted-foreground">
+          {isService ? "需先选择预约时段" : !outOfStock ? `库存 ${product.stock} 件` : ""}
         </p>
       </div>
     </div>

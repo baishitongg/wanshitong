@@ -6,6 +6,18 @@ export async function GET() {
   try {
     const context = await getStaffShopContext();
     const shopFilter = context.isAdmin ? {} : { shopId: context.shopId! };
+    const shop = context.shopId
+      ? await prisma.shop.findUnique({
+          where: { id: context.shopId },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            shopType: true,
+            checkoutMode: true,
+          },
+        })
+      : null;
 
     const [orders, products] = await Promise.all([
       prisma.order.findMany({
@@ -21,6 +33,7 @@ export async function GET() {
     return NextResponse.json({
       shopId: context.shopId,
       shopSlug: context.shopSlug,
+      shop,
       orders: {
         total: orders.length,
         pending: orders.filter((order) => order.status === "PENDING").length,

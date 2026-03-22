@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import ProductCard from "@/components/ProductCard";
 import type { Product, Category } from "@/types";
 import { buildShopHref } from "@/lib/shops";
+import type { ShopTheme } from "@/lib/shopTheme";
 
 const PER_PAGE = 8;
 
@@ -18,6 +19,7 @@ interface Props {
   categories: Category[];
   hideCategoryPills?: boolean;
   defaultSearch?: string;
+  theme?: ShopTheme;
 }
 
 export default function ProductGridWithFilter({
@@ -26,6 +28,7 @@ export default function ProductGridWithFilter({
   categories,
   hideCategoryPills = false,
   defaultSearch = "",
+  theme,
 }: Props) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -120,9 +123,17 @@ export default function ProductGridWithFilter({
             onClick={() => handleCategoryChange("ALL")}
             className={`rounded-full border px-3 py-1 text-xs transition-colors ${
               selectedCategory === "ALL"
-                ? "bg-red-700 border-red-700 text-white"
+                ? "text-white"
                 : "border-border text-muted-foreground hover:border-red-400 hover:text-foreground"
             }`}
+            style={
+              selectedCategory === "ALL"
+                ? {
+                    backgroundColor: theme?.secondary ?? "#b91c1c",
+                    borderColor: theme?.secondary ?? "#b91c1c",
+                  }
+                : undefined
+            }
           >
             全部分类
           </button>
@@ -134,9 +145,17 @@ export default function ProductGridWithFilter({
               onClick={() => handleCategoryChange(category.id)}
               className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                 selectedCategory === category.id
-                  ? "bg-red-700 border-red-700 text-white"
+                  ? "text-white"
                   : "border-border text-muted-foreground hover:border-red-400 hover:text-foreground"
               }`}
+              style={
+                selectedCategory === category.id
+                  ? {
+                      backgroundColor: theme?.secondary ?? "#b91c1c",
+                      borderColor: theme?.secondary ?? "#b91c1c",
+                    }
+                  : undefined
+              }
             >
               {category.name}
             </button>
@@ -153,6 +172,7 @@ export default function ProductGridWithFilter({
                 没有与“{search}”匹配的结果，
                 <button
                   className="text-red-600 hover:underline"
+                  style={{ color: theme?.secondary ?? "#dc2626" }}
                   onClick={() => {
                     setSearch("");
                     setPage(1);
@@ -166,6 +186,7 @@ export default function ProductGridWithFilter({
                 该分类暂无商品，
                 <button
                   className="text-red-600 hover:underline"
+                  style={{ color: theme?.secondary ?? "#dc2626" }}
                   onClick={() => handleCategoryChange("ALL")}
                 >
                   查看全部
@@ -183,7 +204,12 @@ export default function ProductGridWithFilter({
                 href={buildShopHref(shopSlug, `/product/${product.id}`)}
                 className="block"
               >
-                <ProductCard {...product} shopSlug={shopSlug} mode="buyer" />
+                <ProductCard
+                  {...product}
+                  shopSlug={shopSlug}
+                  mode="buyer"
+                  theme={theme}
+                />
               </Link>
             ))}
           </div>
@@ -207,9 +233,14 @@ export default function ProductGridWithFilter({
                     size="sm"
                     className={`h-9 w-9 p-0 ${
                       page === pageNumber
-                        ? "bg-red-700 hover:bg-red-600 border-0"
+                        ? "border-0 text-white"
                         : ""
                     }`}
+                    style={
+                      page === pageNumber
+                        ? { backgroundColor: theme?.secondary ?? "#b91c1c" }
+                        : undefined
+                    }
                     onClick={() => setPage(pageNumber)}
                   >
                     {pageNumber}

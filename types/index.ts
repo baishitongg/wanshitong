@@ -5,6 +5,14 @@ export type ItemType = "PHYSICAL" | "SERVICE";
 export type FulfillmentType = "DELIVERY" | "PICKUP" | "BOOKING";
 export type OrderFlowType = "DELIVERY" | "PICKUP" | "BOOKING";
 export type ServiceLocationType = "ONSITE" | "CUSTOMER_PLACE" | "ONLINE";
+export type ServiceWeekday =
+    | "MONDAY"
+    | "TUESDAY"
+    | "WEDNESDAY"
+    | "THURSDAY"
+    | "FRIDAY"
+    | "SATURDAY"
+    | "SUNDAY";
 
 export type OrderStatus =
     | "PENDING"
@@ -39,11 +47,30 @@ export interface Product {
     maxAdvanceDays: number | null;
     requiresAddress: boolean;
     requiresContact: boolean;
-    attributes?: Record<string, unknown> | null;
+    attributes?: unknown | null;
     category?: { id: string; name: string };
     shop?: { id: string; name: string; slug: string };
     createdAt: Date | string;
     updatedAt: Date | string;
+}
+
+export interface ServiceTimeRange {
+    start: string;
+    end: string;
+}
+
+export interface ServiceAvailabilityDay {
+    day: ServiceWeekday;
+    enabled: boolean;
+    slots: ServiceTimeRange[];
+}
+
+export interface ServiceSlot {
+    key: string;
+    date: string;
+    start: string;
+    end: string;
+    label: string;
 }
 
 export interface Address {

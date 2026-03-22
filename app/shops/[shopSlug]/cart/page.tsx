@@ -1,4 +1,5 @@
 import { requireShopBySlug } from "@/lib/shops";
+import { resolveShopTheme } from "@/lib/shopTheme";
 import ShopCartPage from "@/components/ShopCartPage";
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
 export default async function ShopCartRoutePage({ params }: Props) {
   const { shopSlug } = await params;
   const shop = await requireShopBySlug(shopSlug);
+  const theme = resolveShopTheme(shop);
 
-  return <ShopCartPage shopSlug={shop.slug} shopName={shop.name} />;
+  return <ShopCartPage shopSlug={shop.slug} shopName={shop.name} theme={theme} />;
 }

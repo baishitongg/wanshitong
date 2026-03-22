@@ -5,9 +5,28 @@ import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Briefcase,
+  ChevronRight,
+  Home,
+  Loader2,
+  MapPin,
+  Minus,
+  Package,
+  Phone,
+  Plus,
+  Send,
+  ShoppingCart,
+  Star,
+  Trash2,
+} from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { useShopCart } from "@/lib/store/cartStore";
 import { buildShopHref } from "@/lib/shops";
+import { formatServiceSlotLabel } from "@/lib/service-booking";
+import type { ShopTheme } from "@/lib/shopTheme";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,23 +43,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import {
-  ShoppingCart,
-  Trash2,
-  Plus,
-  Minus,
-  Package,
-  Loader2,
-  ArrowLeft,
-  MapPin,
-  Star,
-  Home,
-  Briefcase,
-  ChevronRight,
-  AlertCircle,
-  Phone,
-  Send,
-} from "lucide-react";
 import type { Address } from "@/types";
 
 type ContactChannel = "PHONE" | "TELEGRAM";
@@ -56,20 +58,42 @@ type SessionUser = {
 
 function getLabelIcon(label: string | null) {
   if (!label) return <MapPin className="h-3.5 w-3.5" />;
-  const l = label.toLowerCase();
-  if (l.includes("home") || l.includes("家")) return <Home className="h-3.5 w-3.5" />;
-  if (l.includes("office") || l.includes("work") || l.includes("公司")) {
+  const lower = label.toLowerCase();
+  if (lower.includes("home") || lower.includes("家")) {
+    return <Home className="h-3.5 w-3.5" />;
+  }
+  if (lower.includes("office") || lower.includes("work") || lower.includes("公司")) {
     return <Briefcase className="h-3.5 w-3.5" />;
   }
   return <MapPin className="h-3.5 w-3.5" />;
 }
 
+function getServiceSlotText(item: {
+  meta?: Record<string, unknown> | null;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+}) {
+  if (item.meta && typeof item.meta.slotLabel === "string") {
+    return item.meta.slotLabel;
+  }
+
+  if (item.scheduledStart && item.scheduledEnd) {
+    return formatServiceSlotLabel(
+      new Date(item.scheduledStart),
+      new Date(item.scheduledEnd),
+    );
+  }
+
+  return null;
+}
+
 interface Props {
   shopSlug: string;
   shopName?: string;
+  theme?: ShopTheme;
 }
 
-export default function ShopCartPage({ shopSlug, shopName }: Props) {
+export default function ShopCartPage({ shopSlug, shopName, theme }: Props) {
   const { data: session, status, update } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -90,13 +114,14 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
 
   useEffect(() => {
     if (status === "authenticated") {
-      fetchCart();
+      void fetchCart();
       void fetchAddresses();
     }
+
     if (status === "unauthenticated") {
       router.push("/login");
     }
-  }, [status, fetchCart, router]);
+  }, [fetchCart, router, status]);
 
   useEffect(() => {
     setSelectedContactChannel(
@@ -108,7 +133,7 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
     if (!user?.telegramUsername && selectedContactChannel === "TELEGRAM") {
       setSelectedContactChannel("PHONE");
     }
-  }, [user?.telegramUsername, selectedContactChannel]);
+  }, [selectedContactChannel, user?.telegramUsername]);
 
   useEffect(() => {
     setTelegramInput(user?.telegramUsername?.replace(/^@+/, "") ?? "");
@@ -121,8 +146,10 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
       if (res.ok) {
         const data = (await res.json()) as Address[];
         setAddresses(data);
-        const def = data.find((address) => address.isDefault) ?? data[0] ?? null;
-        if (def) setSelectedAddressId(def.id);
+        const defaultAddress = data.find((address) => address.isDefault) ?? data[0] ?? null;
+        if (defaultAddress) {
+          setSelectedAddressId(defaultAddress.id);
+        }
       }
     } finally {
       setAddressesLoading(false);
@@ -146,8 +173,6 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
       return matchingIds;
     }
 
-    // If the original drawer selection is no longer valid after cart edits,
-    // fall back to the current cart items so checkout doesn't get stuck.
     return items.map((item) => item.productId);
   }, [items, requestedSelectedIds]);
 
@@ -155,13 +180,13 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
     () => items.filter((item) => selectedProductIds.includes(item.productId)),
     [items, selectedProductIds],
   );
-  const selectedQuantity = selectedItems.reduce(
-    (sum, item) => sum + item.quantity,
-    0,
-  );
+  const selectedQuantity = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
   const selectedTotal = selectedItems.reduce(
     (sum, item) => sum + Number(item.product.price) * item.quantity,
     0,
+  );
+  const requiresAddress = selectedItems.some(
+    (item) => item.product.requiresAddress !== false,
   );
 
   const handleTelegramClick = () => {
@@ -215,7 +240,9 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
     if (selectedProductIds.length === 0) {
       return toast.error("请至少选择一个商品进行结算");
     }
-    if (!selectedAddressId) return toast.error("请先选择收货地址");
+    if (requiresAddress && !selectedAddressId) {
+      return toast.error("请先选择收货地址");
+    }
     if (selectedContactChannel === "PHONE" && !user?.phone) {
       return toast.error("您选择了手机号作为联系方式，但当前未填写手机号");
     }
@@ -234,13 +261,15 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
           telegramUsername: user?.telegramUsername ?? null,
           preferredContactChannel: selectedContactChannel,
           notes,
-          addressId: selectedAddressId,
+          addressId: requiresAddress ? selectedAddressId : null,
           selectedProductIds,
         }),
       });
 
       const data = (await res.json()) as { id?: string; error?: string };
-      if (!res.ok) return toast.error(data.error ?? "下单失败，请重试");
+      if (!res.ok) {
+        return toast.error(data.error ?? "下单失败，请重试");
+      }
 
       if (selectedProductIds.length === items.length) {
         await clearCart();
@@ -259,9 +288,10 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
   if (status === "loading" || loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar shopSlug={shopSlug} shopName={shopName} />
+        <Navbar shopSlug={shopSlug} shopName={shopName} theme={theme} />
         <div className="flex items-center justify-center py-40 text-muted-foreground">
-          <Loader2 className="h-6 w-6 animate-spin mr-2" /> 加载中...
+          <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+          加载中...
         </div>
       </div>
     );
@@ -269,8 +299,8 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar shopSlug={shopSlug} shopName={shopName} />
-      <div className="container mx-auto px-6 md:px-20 py-8 max-w-3xl">
+      <Navbar shopSlug={shopSlug} shopName={shopName} theme={theme} />
+      <div className="container mx-auto max-w-3xl px-6 py-8 md:px-20">
         <Link
           href={buildShopHref(shopSlug)}
           className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -279,24 +309,24 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
           返回店铺首页
         </Link>
 
-        <div className="flex items-center gap-3 mb-8">
+        <div className="mb-8 flex items-center gap-3">
           <ShoppingCart className="h-6 w-6 text-red-600" />
           <h1 className="text-2xl font-bold">购物车</h1>
           {items.length > 0 && (
             <span className="text-sm text-muted-foreground">
-              本次结算 {selectedQuantity} / 共{" "}
-              {items.reduce((sum, item) => sum + item.quantity, 0)} 件商品
+              本次结算 {selectedQuantity} / 共 {items.reduce((sum, item) => sum + item.quantity, 0)} 件商品
             </span>
           )}
         </div>
 
         {items.length === 0 ? (
-          <div className="py-24 flex flex-col items-center gap-4 text-muted-foreground">
+          <div className="flex flex-col items-center gap-4 py-24 text-muted-foreground">
             <Package className="h-16 w-16 opacity-20" />
-            <p className="font-medium text-lg">购物车是空的</p>
+            <p className="text-lg font-medium">购物车是空的</p>
             <Link href={buildShopHref(shopSlug)}>
               <Button variant="outline" className="flex items-center gap-2">
-                <ArrowLeft className="h-4 w-4" /> 去选购
+                <ArrowLeft className="h-4 w-4" />
+                去选购
               </Button>
             </Link>
           </div>
@@ -305,9 +335,7 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
             <div className="space-y-3">
               <div className="flex items-center justify-between rounded-xl border bg-muted/30 px-4 py-3 text-sm">
                 <span className="font-medium">结算商品</span>
-                <span className="text-muted-foreground">
-                  选择请回到购物车抽屉调整
-                </span>
+                <span className="text-muted-foreground">选择请回到购物车抽屉调整</span>
               </div>
 
               {selectedProductIds.length < items.length && selectedItems.length > 0 && (
@@ -316,186 +344,206 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
                 </div>
               )}
 
-              {selectedItems.map((item) => (
-                <Card key={item.productId}>
-                  <CardContent className="py-4 space-y-4">
-                    <div className="flex items-start gap-3">
-                      <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-muted shrink-0">
-                        {item.product.imageUrl ? (
-                          <Image
-                            src={item.product.imageUrl}
-                            alt={item.product.name}
-                            fill
-                            className="object-cover"
-                            sizes="64px"
-                          />
-                        ) : (
-                          <div className="h-full flex items-center justify-center">
-                            <Package className="h-6 w-6 text-muted-foreground/40" />
-                          </div>
-                        )}
-                      </div>
+              {selectedItems.map((item) => {
+                const isService =
+                  item.product.itemType === "SERVICE" ||
+                  item.product.requiresScheduling === true ||
+                  item.product.fulfillmentType === "BOOKING";
+                const serviceSlotText = getServiceSlotText(item);
 
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium leading-5 line-clamp-2">
-                              {item.product.name}
-                            </p>
-                            <p className="mt-1 text-sm font-semibold text-red-600">
-                              RM{Number(item.product.price).toFixed(2)}
-                            </p>
-                          </div>
+                return (
+                  <Card key={item.productId}>
+                    <CardContent className="space-y-4 py-4">
+                      <div className="flex items-start gap-3">
+                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
+                          {item.product.imageUrl ? (
+                            <Image
+                              src={item.product.imageUrl}
+                              alt={item.product.name}
+                              fill
+                              className="object-cover"
+                              sizes="64px"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center">
+                              <Package className="h-6 w-6 text-muted-foreground/40" />
+                            </div>
+                          )}
+                        </div>
 
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                            onClick={() => removeItem(item.productId)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="line-clamp-2 text-sm font-medium leading-5">
+                                {item.product.name}
+                              </p>
+                              <p className="mt-1 text-sm font-semibold text-red-600">
+                                RM{Number(item.product.price).toFixed(2)}
+                              </p>
+                              {serviceSlotText && (
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  预约时段：{serviceSlotText}
+                                </p>
+                              )}
+                            </div>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => removeItem(item.productId)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center justify-between gap-3 border-t pt-3">
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() =>
-                            updateQuantity(item.productId, item.quantity - 1)
-                          }
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-6 text-center text-sm font-medium">
-                          {item.quantity}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() =>
-                            updateQuantity(item.productId, item.quantity + 1)
-                          }
-                          disabled={item.quantity >= item.product.stock}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
+                      <div className="flex items-center justify-between gap-3 border-t pt-3">
+                        {isService ? (
+                          <p className="text-sm text-muted-foreground">服务预约每次只结算一个时段</p>
+                        ) : (
+                          <div className="flex shrink-0 items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="w-6 text-center text-sm font-medium">
+                              {item.quantity}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                              disabled={item.quantity >= item.product.stock}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
+
+                        <p className="min-w-0 text-right text-base font-bold text-foreground">
+                          RM{(Number(item.product.price) * item.quantity).toFixed(2)}
+                        </p>
                       </div>
-
-                      <p className="min-w-0 text-right text-base font-bold text-foreground">
-                        RM{(Number(item.product.price) * item.quantity).toFixed(2)}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-red-600" /> 收货地址
-                </h2>
-                <Link
-                  href={`/profile?shop=${shopSlug}`}
-                  className="text-xs text-red-600 hover:underline flex items-center gap-1"
-                >
-                  管理地址 <ChevronRight className="h-3 w-3" />
-                </Link>
-              </div>
-
-              {addressesLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                  <Loader2 className="h-4 w-4 animate-spin" /> 加载地址中...
-                </div>
-              ) : addresses.length === 0 ? (
-                <div className="border-2 border-dashed rounded-xl p-6 flex flex-col items-center gap-3 text-muted-foreground">
-                  <AlertCircle className="h-8 w-8 text-yellow-500 opacity-70" />
-                  <p className="text-sm font-medium">还没有收货地址</p>
-                  <Link href={`/profile?shop=${shopSlug}`}>
-                    <Button
-                      size="sm"
-                      className="bg-red-700 hover:bg-red-600 text-white flex items-center gap-2"
-                    >
-                      <Plus className="h-3.5 w-3.5" /> 前往添加地址
-                    </Button>
+            {requiresAddress && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="flex items-center gap-2 font-semibold">
+                    <MapPin className="h-4 w-4 text-red-600" />
+                    收货地址
+                  </h2>
+                  <Link
+                    href={`/profile?shop=${shopSlug}`}
+                    className="flex items-center gap-1 text-xs text-red-600 hover:underline"
+                  >
+                    管理地址
+                    <ChevronRight className="h-3 w-3" />
                   </Link>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {addresses.map((addr) => (
-                    <div
-                      key={addr.id}
-                      className={`relative rounded-xl border-2 p-4 cursor-pointer transition-all ${
-                        selectedAddressId === addr.id
-                          ? "border-red-600 bg-red-50/40 dark:bg-red-950/10"
-                          : "border-border hover:border-red-300"
-                      }`}
-                      onClick={() => setSelectedAddressId(addr.id)}
-                    >
-                      <div
-                        className={`absolute top-4 right-4 h-4 w-4 rounded-full border-2 flex items-center justify-center transition-colors ${
-                          selectedAddressId === addr.id
-                            ? "border-red-600"
-                            : "border-muted-foreground/40"
-                        }`}
+
+                {addressesLoading ? (
+                  <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    加载地址中...
+                  </div>
+                ) : addresses.length === 0 ? (
+                  <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed p-6 text-muted-foreground">
+                    <AlertCircle className="h-8 w-8 opacity-70 text-yellow-500" />
+                    <p className="text-sm font-medium">还没有收货地址</p>
+                    <Link href={`/profile?shop=${shopSlug}`}>
+                      <Button
+                        size="sm"
+                        className="flex items-center gap-2 bg-red-700 text-white hover:bg-red-600"
                       >
-                        {selectedAddressId === addr.id && (
-                          <div className="h-2 w-2 rounded-full bg-red-600" />
-                        )}
-                      </div>
-                      <div className="pr-6 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {addr.label && (
-                            <Badge
-                              variant="secondary"
-                              className="flex items-center gap-1 text-xs"
-                            >
-                              {getLabelIcon(addr.label)}
-                              {addr.label}
-                            </Badge>
-                          )}
-                          {addr.isDefault && (
-                            <Badge className="text-xs bg-red-700 text-white border-0 flex items-center gap-1">
-                              <Star className="h-2.5 w-2.5 fill-current" /> 默认
-                            </Badge>
+                        <Plus className="h-3.5 w-3.5" />
+                        前往添加地址
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {addresses.map((address) => (
+                      <div
+                        key={address.id}
+                        className={`relative cursor-pointer rounded-xl border-2 p-4 transition-all ${
+                          selectedAddressId === address.id
+                            ? "border-red-600 bg-red-50/40 dark:bg-red-950/10"
+                            : "border-border hover:border-red-300"
+                        }`}
+                        onClick={() => setSelectedAddressId(address.id)}
+                      >
+                        <div
+                          className={`absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border-2 transition-colors ${
+                            selectedAddressId === address.id
+                              ? "border-red-600"
+                              : "border-muted-foreground/40"
+                          }`}
+                        >
+                          {selectedAddressId === address.id && (
+                            <div className="h-2 w-2 rounded-full bg-red-600" />
                           )}
                         </div>
-                        <p className="text-sm font-medium">
-                          {addr.recipient}
-                          <span className="text-muted-foreground font-normal ml-2">
-                            {addr.phone}
-                          </span>
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {addr.street}, {addr.city}, {addr.state} {addr.postcode},{" "}
-                          {addr.country}
-                        </p>
+
+                        <div className="space-y-1 pr-6">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {address.label && (
+                              <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                                {getLabelIcon(address.label)}
+                                {address.label}
+                              </Badge>
+                            )}
+                            {address.isDefault && (
+                              <Badge className="flex items-center gap-1 border-0 bg-red-700 text-xs text-white">
+                                <Star className="h-2.5 w-2.5 fill-current" />
+                                默认
+                              </Badge>
+                            )}
+                          </div>
+
+                          <p className="text-sm font-medium">
+                            {address.recipient}
+                            <span className="ml-2 font-normal text-muted-foreground">
+                              {address.phone}
+                            </span>
+                          </p>
+
+                          <p className="text-sm text-muted-foreground">
+                            {address.street}, {address.city}, {address.state} {address.postcode},{" "}
+                            {address.country}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label>备注（可选）</Label>
               <Textarea
                 placeholder="如有特殊要求，请在此注明..."
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(event) => setNotes(event.target.value)}
                 rows={3}
               />
             </div>
 
             <div className="space-y-2">
               <Label>沟通方式</Label>
-              <div className="rounded-xl border p-4 space-y-4">
+              <div className="space-y-4 rounded-xl border p-4">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">手机号</span>
                   <span className="font-medium">{user?.phone ?? "未填写"}</span>
@@ -510,38 +558,32 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
                 </div>
                 <div className="space-y-2">
                   <Label>请选择本次订单首选联系方式</Label>
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <Button
                       type="button"
-                      variant={
-                        selectedContactChannel === "PHONE" ? "default" : "outline"
-                      }
+                      variant={selectedContactChannel === "PHONE" ? "default" : "outline"}
                       className={
                         selectedContactChannel === "PHONE"
-                          ? "bg-red-700 hover:bg-red-600 text-white"
+                          ? "bg-red-700 text-white hover:bg-red-600"
                           : ""
                       }
                       onClick={() => setSelectedContactChannel("PHONE")}
                       disabled={!user?.phone}
                     >
-                      <Phone className="h-4 w-4 mr-2" />
+                      <Phone className="mr-2 h-4 w-4" />
                       手机号
                     </Button>
                     <Button
                       type="button"
-                      variant={
-                        selectedContactChannel === "TELEGRAM"
-                          ? "default"
-                          : "outline"
-                      }
+                      variant={selectedContactChannel === "TELEGRAM" ? "default" : "outline"}
                       className={
                         selectedContactChannel === "TELEGRAM"
-                          ? "bg-red-700 hover:bg-red-600 text-white"
+                          ? "bg-red-700 text-white hover:bg-red-600"
                           : ""
                       }
                       onClick={handleTelegramClick}
                     >
-                      <Send className="h-4 w-4 mr-2" />
+                      <Send className="mr-2 h-4 w-4" />
                       Telegram
                     </Button>
                   </div>
@@ -550,12 +592,13 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
             </div>
 
             <Separator />
+
             <div className="space-y-3">
               <div className="flex justify-between text-sm text-muted-foreground">
                 <span>已选商品小计</span>
                 <span>RM{selectedTotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between font-bold text-lg">
+              <div className="flex justify-between text-lg font-bold">
                 <span>已选商品合计</span>
                 <span className="text-red-600">RM{selectedTotal.toFixed(2)}</span>
               </div>
@@ -563,19 +606,17 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
                 <p className="text-xs text-destructive">
                   当前没有可结算商品，请先回到购物车抽屉选择商品
                 </p>
-              ) : selectedProductIds.length < items.length && (
-                <p className="text-xs text-muted-foreground">
-                  未勾选的商品会保留在购物车中
-                </p>
-              )}
+              ) : selectedProductIds.length < items.length ? (
+                <p className="text-xs text-muted-foreground">未勾选的商品会保留在购物车中</p>
+              ) : null}
             </div>
 
             <Button
-              className="w-full bg-red-700 hover:bg-red-600 text-white h-12 text-base"
+              className="h-12 w-full bg-red-700 text-base text-white hover:bg-red-600"
               onClick={handlePlaceOrder}
-              disabled={placing || !selectedAddressId || selectedProductIds.length === 0}
+              disabled={placing || selectedProductIds.length === 0 || (requiresAddress && !selectedAddressId)}
             >
-              {placing && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {placing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               结算已选商品
             </Button>
 
@@ -594,7 +635,8 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
           <DialogHeader>
             <DialogTitle>还没有设置 Telegram</DialogTitle>
             <DialogDescription>
-              您当前还没有填写 Telegram 用户名。现在设置后，本次订单就可以使用 Telegram 作为首选联系方式。
+              您当前还没有填写 Telegram 用户名。现在设置后，本次订单就可以使用 Telegram
+              作为首选联系方式。
             </DialogDescription>
           </DialogHeader>
 
@@ -605,12 +647,10 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
                 id="telegram-username"
                 placeholder="例如：wanshitong_user"
                 value={telegramInput}
-                onChange={(e) => setTelegramInput(e.target.value)}
+                onChange={(event) => setTelegramInput(event.target.value)}
                 disabled={savingTelegram}
               />
-              <p className="text-xs text-muted-foreground">
-                请输入 Telegram 用户名，不需要填写 @。
-              </p>
+              <p className="text-xs text-muted-foreground">请输入用户名，不需要填写 @。</p>
             </div>
 
             <DialogFooter className="gap-2 sm:gap-0">
@@ -624,12 +664,10 @@ export default function ShopCartPage({ shopSlug, shopName }: Props) {
               </Button>
               <Button
                 type="submit"
-                className="bg-red-700 hover:bg-red-600 text-white"
+                className="bg-red-700 text-white hover:bg-red-600"
                 disabled={savingTelegram}
               >
-                {savingTelegram && (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                )}
+                {savingTelegram && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 保存并使用 Telegram
               </Button>
             </DialogFooter>

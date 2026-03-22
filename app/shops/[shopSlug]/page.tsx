@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { getCachedCategories, getCachedProducts } from "@/lib/queries";
 import { requireShopBySlug } from "@/lib/shops";
+import { resolveShopTheme, withAlpha } from "@/lib/shopTheme";
 import Navbar from "@/components/Navbar";
 import ProductGridWithFilter from "@/components/ProductGridWithFilter";
 import MobileCategoryDropdown from "@/components/MobileCategoryDropdown";
@@ -14,6 +15,7 @@ interface Props {
 export default async function ShopHomePage({ params }: Props) {
   const { shopSlug } = await params;
   const shop = await requireShopBySlug(shopSlug);
+  const theme = resolveShopTheme(shop);
 
   const [products, categories] = await Promise.all([
     getCachedProducts(shopSlug),
@@ -21,40 +23,65 @@ export default async function ShopHomePage({ params }: Props) {
   ]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar shopSlug={shop.slug} shopName={shop.name} />
+    <div className="min-h-screen bg-background" style={{ backgroundColor: theme.surface }}>
+      <Navbar shopSlug={shop.slug} shopName={shop.name} theme={theme} />
 
-      <section className="relative overflow-hidden bg-gradient-to-br from-red-950 via-red-900 to-rose-800">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.14),_transparent_36%)]" />
+      <section
+        className="relative overflow-hidden"
+        style={{
+          background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 58%, ${theme.accent} 100%)`,
+        }}
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `radial-gradient(circle at top right, ${withAlpha("#ffffff", 0.14)}, transparent 36%)`,
+          }}
+        />
         {shop.heroImageUrl ? (
           <div
-            className="absolute inset-0 opacity-15 bg-cover bg-center"
+            className="absolute inset-0 bg-cover bg-center opacity-15"
             style={{ backgroundImage: `url(${shop.heroImageUrl})` }}
           />
         ) : null}
 
         <div className="relative container mx-auto px-6 py-10 md:px-20 md:py-14">
           <div className="max-w-2xl text-white">
-            <span className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-red-100/85">
-              Wanshitong Platform
+            <span
+              className="inline-flex rounded-full px-3 py-1 text-[11px] font-semibold tracking-[0.24em]"
+              style={{
+                border: `1px solid ${withAlpha("#ffffff", 0.18)}`,
+                backgroundColor: withAlpha("#ffffff", 0.1),
+                color: withAlpha("#ffffff", 0.86),
+              }}
+            >
+              万事通平台
             </span>
             <h1 className="mt-4 text-4xl font-bold leading-tight md:text-5xl">
               {shop.heroTitle ?? shop.name}
             </h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-red-50/85 md:text-lg md:leading-8">
+            <p
+              className="mt-3 max-w-xl text-sm leading-6 md:text-lg md:leading-8"
+              style={{ color: withAlpha("#ffffff", 0.86) }}
+            >
               {shop.heroSubtitle ?? shop.description ?? "探索店铺商品与分类。"}
             </p>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="#products"
-                className="inline-flex items-center justify-center rounded-full bg-red-500 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-400"
+                className="inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
+                style={{ backgroundColor: theme.accent }}
               >
                 立即选购
               </Link>
               <Link
                 href={`/shops/${shop.slug}/how-to-use`}
-                className="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/15"
+                className="inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold text-white transition-colors"
+                style={{
+                  border: `1px solid ${withAlpha("#ffffff", 0.22)}`,
+                  backgroundColor: withAlpha("#ffffff", 0.1),
+                }}
               >
                 使用说明
               </Link>
@@ -77,7 +104,8 @@ export default async function ShopHomePage({ params }: Props) {
                 <Link
                   key={cat.id}
                   href={`/shops/${shop.slug}/category/${cat.id}`}
-                  className="flex flex-shrink-0 items-center gap-0.5 whitespace-nowrap text-sm text-muted-foreground transition-colors hover:text-red-600"
+                  className="flex flex-shrink-0 items-center gap-0.5 whitespace-nowrap text-sm transition-colors"
+                  style={{ color: theme.secondary }}
                 >
                   {cat.name}
                   <ChevronRight className="h-3 w-3 opacity-40" />
@@ -102,6 +130,7 @@ export default async function ShopHomePage({ params }: Props) {
             shopSlug={shop.slug}
             products={products}
             categories={categories}
+            theme={theme}
           />
         </Suspense>
       </section>

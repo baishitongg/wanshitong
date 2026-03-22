@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getProductsForShop } from "@/lib/commerce";
 import { getStaffShopContext } from "@/lib/shops";
+import { buildServiceAttributes, type ServiceAvailabilityDay } from "@/lib/service-booking";
+import { Prisma } from "@prisma/client";
 
 type Body = {
   name?: string;
@@ -12,6 +14,12 @@ type Body = {
   imageUrl?: string | null;
   status?: boolean;
   attributes?: Record<string, unknown> | null;
+  galleryUrls?: string[];
+  weeklyAvailability?: ServiceAvailabilityDay[];
+  durationMinutes?: number;
+  minAdvanceHours?: number;
+  maxAdvanceDays?: number;
+  requiresAddress?: boolean;
 };
 
 export async function GET() {
@@ -35,9 +43,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "管理员请使用平台管理接口" }, { status: 400 });
     }
 
+    const shop = await prisma.shop.findUnique({
+      where: { id: context.shopId! },
+      select: { id: true, shopType: true },
+    });
+
+    if (!shop) {
+      return NextResponse.json({ error: "店铺不存在" }, { status: 404 });
+    }
+
     const body = (await req.json()) as Body;
     if (!body.name || body.price === undefined || !body.categoryId) {
-      return NextResponse.json({ error: "商品名称、价格和分类为必填项" }, { status: 400 });
+      return NextResponse.json({ error: "名称、价格和分类为必填项" }, { status: 400 });
     }
 
     const category = await prisma.category.findFirst({
@@ -48,6 +65,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "分类不存在" }, { status: 400 });
     }
 
+    const isServiceShop = shop.shopType === "SERVICE";
+    const serviceAttributes = isServiceShop
+      ? buildServiceAttributes({
+          galleryUrls: body.galleryUrls ?? [],
+          weeklyAvailability: body.weeklyAvailability ?? [],
+        })
+      : null;
+
     const product = await prisma.product.create({
       data: {
         shopId: context.shopId!,
@@ -55,10 +80,22 @@ export async function POST(req: Request) {
         name: body.name,
         description: body.description ?? null,
         price: body.price,
-        stock: body.stock ?? 0,
+        stock: isServiceShop ? 1 : body.stock ?? 0,
         imageUrl: body.imageUrl ?? null,
         status: body.status ?? true,
-        attributes: body.attributes ?? null,
+        itemType: isServiceShop ? "SERVICE" : "PHYSICAL",
+        fulfillmentType: isServiceShop ? "BOOKING" : "DELIVERY",
+        requiresScheduling: isServiceShop,
+        durationMinutes: isServiceShop ? body.durationMinutes ?? 60 : null,
+        minAdvanceHours: isServiceShop ? body.minAdvanceHours ?? 0 : null,
+        maxAdvanceDays: isServiceShop ? body.maxAdvanceDays ?? 14 : null,
+        requiresAddress: isServiceShop ? body.requiresAddress ?? false : true,
+        requiresContact: true,
+        attributes: isServiceShop
+          ? (serviceAttributes as Prisma.InputJsonValue)
+          : body.attributes !== undefined
+            ? (body.attributes as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
       },
       include: { category: true },
     });

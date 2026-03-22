@@ -3,23 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { CheckSquare, Minus, Package, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useShopCart } from "@/lib/store/cartStore";
-import {
-  Minus,
-  Plus,
-  Trash2,
-  Package,
-  ShoppingBag,
-  CheckSquare,
-} from "lucide-react";
 import { buildShopHref } from "@/lib/shops";
+import { formatServiceSlotLabel } from "@/lib/service-booking";
 
 interface CartDrawerProps {
   shopSlug: string;
@@ -27,28 +16,39 @@ interface CartDrawerProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export default function CartDrawer({
-  shopSlug,
-  open,
-  onOpenChange,
-}: CartDrawerProps) {
+function getCartItemLabel(item: {
+  meta?: Record<string, unknown> | null;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+}) {
+  const slotLabel =
+    item.meta && typeof item.meta.slotLabel === "string" ? item.meta.slotLabel : null;
+
+  if (slotLabel) {
+    return slotLabel;
+  }
+
+  if (item.scheduledStart && item.scheduledEnd) {
+    return formatServiceSlotLabel(
+      new Date(item.scheduledStart),
+      new Date(item.scheduledEnd),
+    );
+  }
+
+  return null;
+}
+
+export default function CartDrawer({ shopSlug, open, onOpenChange }: CartDrawerProps) {
   const router = useRouter();
-  const {
-    items,
-    loading,
-    fetchCart,
-    removeItem,
-    updateQuantity,
-    totalPrice,
-    clearCart,
-  } = useShopCart(shopSlug);
+  const { items, loading, fetchCart, removeItem, updateQuantity, totalPrice, clearCart } =
+    useShopCart(shopSlug);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (open) {
       fetchCart();
     }
-  }, [open, fetchCart]);
+  }, [fetchCart, open]);
 
   useEffect(() => {
     setSelectedProductIds((current) => {
@@ -64,8 +64,7 @@ export default function CartDrawer({
     () => items.filter((item) => selectedProductIds.includes(item.productId)),
     [items, selectedProductIds],
   );
-  const allSelected =
-    items.length > 0 && selectedProductIds.length === items.length;
+  const allSelected = items.length > 0 && selectedProductIds.length === items.length;
   const selectedTotal = selectedItems.reduce(
     (sum, item) => sum + Number(item.product.price) * item.quantity,
     0,
@@ -95,33 +94,33 @@ export default function CartDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md flex flex-col p-0">
-        <SheetHeader className="px-5 py-4 border-b">
+      <SheetContent className="flex w-full flex-col p-0 sm:max-w-md">
+        <SheetHeader className="border-b px-5 py-4">
           <SheetTitle className="flex items-center gap-2">
             <ShoppingBag className="h-5 w-5 text-green-600" />
             购物车
-            <span className="text-muted-foreground font-normal text-sm">
+            <span className="text-sm font-normal text-muted-foreground">
               ({items.reduce((sum, item) => sum + item.quantity, 0)} 件商品)
             </span>
           </SheetTitle>
         </SheetHeader>
 
         {loading ? (
-          <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
             加载中...
           </div>
         ) : items.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 px-5 text-center text-muted-foreground">
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-5 text-center text-muted-foreground">
             <Package className="h-16 w-16 opacity-20" />
             <p className="font-medium">购物车是空的</p>
             <p className="text-sm">去选购吧</p>
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto px-5 py-4 pr-4 space-y-4">
+            <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4 pr-4">
               {items.length > 1 && (
                 <div className="flex items-center justify-between rounded-xl border bg-muted/30 px-3 py-2">
-                  <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
                     <input
                       type="checkbox"
                       checked={allSelected}
@@ -137,97 +136,106 @@ export default function CartDrawer({
                 </div>
               )}
 
-              {items.map((item) => (
-                <div key={item.productId} className="flex gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedProductIds.includes(item.productId)}
-                    onChange={() => toggleProductSelection(item.productId)}
-                    className="mt-1 h-4 w-4 rounded border-border text-red-600 focus:ring-red-500 shrink-0"
-                    aria-label={`select ${item.product.name}`}
-                  />
+              {items.map((item) => {
+                const isService =
+                  item.product.itemType === "SERVICE" ||
+                  item.product.requiresScheduling === true ||
+                  item.product.fulfillmentType === "BOOKING";
+                const slotLabel = getCartItemLabel(item);
 
-                  <div className="relative h-16 w-16 rounded-lg bg-muted overflow-hidden flex-shrink-0">
-                    {item.product.imageUrl ? (
-                      <Image
-                        src={item.product.imageUrl}
-                        alt={item.product.name}
-                        fill
-                        className="object-contain"
-                        sizes="64px"
-                      />
-                    ) : (
-                      <div className="h-full flex items-center justify-center">
-                        <Package className="h-6 w-6 text-muted-foreground/40" />
-                      </div>
-                    )}
-                  </div>
+                return (
+                  <div key={item.productId} className="flex gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedProductIds.includes(item.productId)}
+                      onChange={() => toggleProductSelection(item.productId)}
+                      className="mt-1 h-4 w-4 shrink-0 rounded border-border text-red-600 focus:ring-red-500"
+                      aria-label={`select ${item.product.name}`}
+                    />
 
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm line-clamp-1">
-                      {item.product.name}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      RM {Number(item.product.price).toFixed(2)}
-                    </p>
+                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
+                      {item.product.imageUrl ? (
+                        <Image
+                          src={item.product.imageUrl}
+                          alt={item.product.name}
+                          fill
+                          className="object-contain"
+                          sizes="64px"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center">
+                          <Package className="h-6 w-6 text-muted-foreground/40" />
+                        </div>
+                      )}
+                    </div>
 
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() =>
-                          updateQuantity(item.productId, item.quantity - 1)
-                        }
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-1 text-sm font-medium">{item.product.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        RM {Number(item.product.price).toFixed(2)}
+                      </p>
+                      {slotLabel && (
+                        <p className="mt-1 text-xs text-muted-foreground">{slotLabel}</p>
+                      )}
 
-                      <span className="text-sm w-6 text-center font-medium">
-                        {item.quantity}
-                      </span>
+                      {isService ? (
+                        <p className="mt-1 text-xs text-rose-600">服务预约每次只能选择一个时段</p>
+                      ) : (
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
 
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() =>
-                          updateQuantity(item.productId, item.quantity + 1)
-                        }
-                        disabled={item.quantity >= item.product.stock}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
+                          <span className="w-6 text-center text-sm font-medium">
+                            {item.quantity}
+                          </span>
+
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                            disabled={item.quantity >= item.product.stock}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col items-end justify-between">
+                      <button onClick={() => removeItem(item.productId)}>
+                        <Trash2 className="h-4 w-4 text-muted-foreground transition-colors hover:text-destructive" />
+                      </button>
+                      <p className="text-sm font-semibold">
+                        RM {(Number(item.product.price) * item.quantity).toFixed(2)}
+                      </p>
                     </div>
                   </div>
-
-                  <div className="flex flex-col items-end justify-between">
-                    <button onClick={() => removeItem(item.productId)}>
-                      <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive transition-colors" />
-                    </button>
-                    <p className="text-sm font-semibold">
-                      RM {(Number(item.product.price) * item.quantity).toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            <div className="space-y-4 px-5 py-4 border-t">
+            <div className="space-y-4 border-t px-5 py-4">
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>已选商品</span>
+                <span>{selectedItems.reduce((sum, item) => sum + item.quantity, 0)} 件</span>
+              </div>
+
+              <div className="flex items-center justify-between text-base font-semibold">
+                <span>总计</span>
                 <span>
-                  {selectedItems.reduce((sum, item) => sum + item.quantity, 0)} 件
+                  RM {(selectedProductIds.length > 0 ? selectedTotal : totalPrice()).toFixed(2)}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between font-semibold text-base">
-                <span>总计</span>
-                <span>RM {(selectedProductIds.length > 0 ? selectedTotal : totalPrice()).toFixed(2)}</span>
-              </div>
-
               <Button
-                className="w-full bg-red-600 hover:bg-red-700 text-white"
+                className="w-full bg-red-600 text-white hover:bg-red-700"
                 onClick={handleCheckout}
                 disabled={selectedProductIds.length === 0}
               >
@@ -237,7 +245,7 @@ export default function CartDrawer({
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full text-muted-foreground text-xs"
+                className="w-full text-xs text-muted-foreground"
                 onClick={clearCart}
               >
                 清空购物车

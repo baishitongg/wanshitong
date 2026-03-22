@@ -25,9 +25,6 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   const body = (await req.json()) as Body;
-  if (!body.addressId) {
-    return NextResponse.json({ error: "请选择收货地址" }, { status: 400 });
-  }
 
   try {
     const { shopSlug } = await params;
@@ -41,7 +38,7 @@ export async function POST(req: Request, { params }: Params) {
       preferredContactChannel:
         body.preferredContactChannel ?? user.preferredContactChannel ?? "PHONE",
       notes: body.notes ?? null,
-      addressId: body.addressId,
+      addressId: body.addressId ?? null,
       selectedProductIds: body.selectedProductIds ?? [],
     });
 
@@ -64,12 +61,15 @@ export async function POST(req: Request, { params }: Params) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "UNKNOWN";
     const map: Record<string, string> = {
+      ADDRESS_REQUIRED: "请先选择收货地址",
       ADDRESS_NOT_FOUND: "地址不存在",
       EMPTY_CART: "购物车为空",
       NO_ITEMS_SELECTED: "请至少选择一个商品进行结算",
       PHONE_REQUIRED: "您选择了手机号作为联系方式，但手机号为空",
       TELEGRAM_REQUIRED: "您选择了 Telegram 作为联系方式，但用户名为空",
       INSUFFICIENT_STOCK: "库存不足",
+      SLOT_REQUIRED: "请先选择服务预约时段",
+      SLOT_UNAVAILABLE: "该预约时段已被预订，请重新选择",
     };
     return NextResponse.json(
       { error: map[message] ?? "下单失败，请稍后重试" },

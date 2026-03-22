@@ -147,6 +147,10 @@ model CartItem {
   cartId    String
   productId String
   quantity  Int      @default(1)
+  slotKey   String?
+  scheduledStart DateTime?
+  scheduledEnd DateTime?
+  meta      Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)

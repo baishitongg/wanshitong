@@ -9,12 +9,20 @@ export interface CartProduct {
   price: number | string;
   imageUrl?: string | null;
   stock: number;
+  itemType?: "PHYSICAL" | "SERVICE";
+  fulfillmentType?: "DELIVERY" | "PICKUP" | "BOOKING";
+  requiresScheduling?: boolean;
+  requiresAddress?: boolean;
 }
 
 export interface CartItem {
   id: string;
   productId: string;
   quantity: number;
+  slotKey?: string | null;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+  meta?: Record<string, unknown> | null;
   product: CartProduct;
 }
 
@@ -36,6 +44,12 @@ interface CartStore {
     shopSlug: string,
     product: CartProduct,
     quantity?: number,
+    options?: {
+      slotKey?: string;
+      scheduledStart?: string;
+      scheduledEnd?: string;
+      meta?: Record<string, unknown> | null;
+    },
   ) => Promise<void>;
   updateQuantity: (
     shopSlug: string,
@@ -111,21 +125,32 @@ export const useCartStore = create<CartStore>((set, get) => ({
     }
   },
 
-  addItem: async (shopSlug, product, quantity = 1) => {
+  addItem: async (shopSlug, product, quantity = 1, options) => {
     const current = getShopCart(get().carts, shopSlug).items;
     const existing = current.find((item) => item.productId === product.id);
+    const isService =
+      product.itemType === "SERVICE" ||
+      product.requiresScheduling === true ||
+      product.fulfillmentType === "BOOKING";
 
-    const nextQuantity = Math.min(
-      existing ? existing.quantity + quantity : quantity,
-      product.stock,
-    );
+    const nextQuantity = isService
+      ? 1
+      : Math.min(existing ? existing.quantity + quantity : quantity, product.stock);
 
     set((state) => ({
       carts: mergeShopCart(state.carts, shopSlug, {
         items: existing
           ? current.map((item) =>
               item.productId === product.id
-                ? { ...item, quantity: nextQuantity }
+                ? {
+                    ...item,
+                    quantity: nextQuantity,
+                    slotKey: options?.slotKey ?? item.slotKey ?? null,
+                    scheduledStart:
+                      options?.scheduledStart ?? item.scheduledStart ?? null,
+                    scheduledEnd: options?.scheduledEnd ?? item.scheduledEnd ?? null,
+                    meta: options?.meta ?? item.meta ?? null,
+                  }
                 : item,
             )
           : [
@@ -134,6 +159,10 @@ export const useCartStore = create<CartStore>((set, get) => ({
                 id: `temp-${shopSlug}-${product.id}`,
                 productId: product.id,
                 quantity: nextQuantity,
+                slotKey: options?.slotKey ?? null,
+                scheduledStart: options?.scheduledStart ?? null,
+                scheduledEnd: options?.scheduledEnd ?? null,
+                meta: options?.meta ?? null,
                 product,
               },
             ],
@@ -149,6 +178,10 @@ export const useCartStore = create<CartStore>((set, get) => ({
         body: JSON.stringify({
           productId: product.id,
           quantity: nextQuantity,
+          slotKey: options?.slotKey,
+          scheduledStart: options?.scheduledStart,
+          scheduledEnd: options?.scheduledEnd,
+          meta: options?.meta ?? null,
         }),
       });
 
@@ -330,8 +363,16 @@ export function useShopCart(shopSlug: string) {
 
   const fetchShopCart = useCallback(() => fetchCart(shopSlug), [fetchCart, shopSlug]);
   const addShopItem = useCallback(
-    (product: CartProduct, quantity?: number) =>
-      addItem(shopSlug, product, quantity),
+    (
+      product: CartProduct,
+      quantity?: number,
+      options?: {
+        slotKey?: string;
+        scheduledStart?: string;
+        scheduledEnd?: string;
+        meta?: Record<string, unknown> | null;
+      },
+    ) => addItem(shopSlug, product, quantity, options),
     [addItem, shopSlug],
   );
   const updateShopQuantity = useCallback(
