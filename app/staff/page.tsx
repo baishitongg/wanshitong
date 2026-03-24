@@ -64,13 +64,13 @@ type SessionUser = {
   staffShopId?: string | null;
 };
 
-const STATUS_OPTIONS: OrderStatus[] = [
+const STATUS_OPTIONS = [
   "PENDING",
   "CONFIRMED",
   "PROCESSING",
   "DONE",
   "CANCELLED",
-];
+] as const;
 
 const statusLabels: Record<string, string> = {
   ALL: "全部",
@@ -244,9 +244,9 @@ function OrdersTab() {
 
   const stats = {
     total: orders.length,
-    pending: orders.filter((o) => o.status === "PENDING").length,
-    processing: orders.filter((o) => o.status === "PROCESSING").length,
-    done: orders.filter((o) => o.status === "DONE").length,
+    pending: orders.filter((o) => String(o.status) === "PENDING").length,
+    processing: orders.filter((o) => String(o.status) === "PROCESSING").length,
+    done: orders.filter((o) => String(o.status) === "DONE").length,
   };
 
   function buildWhatsAppMessageByStatus(order: Order, nextStatus?: string) {

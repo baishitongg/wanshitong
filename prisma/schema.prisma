@@ -46,6 +46,10 @@ model Shop {
   themeSurface     String?
   logoUrl          String?
   homepageVariant  String?
+  paymentQrImageUrl String?
+  bankName         String?
+  bankAccountName  String?
+  bankAccountNumber String?
   carts            Cart[]
   categories       Category[]
   orders           Order[]
@@ -163,7 +167,7 @@ model Order {
   id                      String         @id @default(uuid())
   userId                  String?
   guestSession            String?
-  status                  OrderStatus    @default(PENDING)
+  status                  OrderStatus    @default(VERIFYING)
   totalAmount             Decimal        @db.Decimal(10, 2)
   flowType                OrderFlowType  @default(DELIVERY)
   customerName            String?
@@ -187,6 +191,9 @@ model Order {
   serviceLocationType     ServiceLocationType?
   serviceAddressText      String?
   bookingReference        String?
+  paymentMethod           PaymentMethod?
+  paymentReceiptUrl       String?
+  paymentReceiptUploadedAt DateTime?
   shopId                  String
   address                 Address?       @relation(fields: [addressId], references: [id])
   shop                    Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
@@ -219,10 +226,10 @@ enum Role {
 }
 
 enum OrderStatus {
-  PENDING
-  CONFIRMED
+  VERIFYING
   PROCESSING
-  DONE
+  SHIPPED
+  RECEIVED
   CANCELLED
 }
 
@@ -269,4 +276,9 @@ enum ServiceLocationType {
   ONSITE
   CUSTOMER_PLACE
   ONLINE
+}
+
+enum PaymentMethod {
+  QR
+  BANK_TRANSFER
 }

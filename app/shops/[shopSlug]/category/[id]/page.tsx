@@ -38,7 +38,14 @@ export default async function ShopCategoryPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-background" style={{ backgroundColor: theme.surface }}>
-      <Navbar shopSlug={shop.slug} shopName={shop.name} theme={theme} />
+      <Navbar
+        shopSlug={shop.slug}
+        shopName={shop.name}
+        theme={theme}
+        supportWhatsApp={shop.whatsappPhone}
+        supportTelegram={shop.telegramUsername}
+        hideCart={shop.shopType === "SERVICE"}
+      />
 
       <section
         className="px-6 py-10 text-white md:px-20"

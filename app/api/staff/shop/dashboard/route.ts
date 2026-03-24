@@ -36,9 +36,9 @@ export async function GET() {
       shop,
       orders: {
         total: orders.length,
-        pending: orders.filter((order) => order.status === "PENDING").length,
-        processing: orders.filter((order) => order.status === "PROCESSING").length,
-        done: orders.filter((order) => order.status === "DONE").length,
+        pending: orders.filter((order) => String(order.status) === "VERIFYING").length,
+        processing: orders.filter((order) => String(order.status) === "PROCESSING").length,
+        done: orders.filter((order) => String(order.status) === "SHIPPED").length,
         totalAmount: orders.reduce(
           (sum, order) => sum + Number(order.totalAmount),
           0,

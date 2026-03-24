@@ -37,7 +37,14 @@ export default async function ShopProductDetailPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-background" style={{ backgroundColor: theme.surface }}>
-      <Navbar shopSlug={shop.slug} shopName={shop.name} theme={theme} />
+      <Navbar
+        shopSlug={shop.slug}
+        shopName={shop.name}
+        theme={theme}
+        supportWhatsApp={shop.whatsappPhone}
+        supportTelegram={shop.telegramUsername}
+        hideCart={shop.shopType === "SERVICE"}
+      />
 
       <div className="container mx-auto max-w-5xl px-6 py-8 md:px-20">
         <nav className="mb-6 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
@@ -62,7 +69,12 @@ export default async function ShopProductDetailPage({ params }: Props) {
           <span className="line-clamp-1 text-foreground">{product.name}</span>
         </nav>
 
-        <ProductDetailClient shopSlug={shop.slug} product={product} theme={theme} />
+        <ProductDetailClient
+          shopSlug={shop.slug}
+          product={product}
+          theme={theme}
+          supportTelegram={shop.telegramUsername}
+        />
 
         {serializedRelated.length > 0 && (
           <div className="mt-16 space-y-5">

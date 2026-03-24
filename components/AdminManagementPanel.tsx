@@ -27,6 +27,10 @@ type ShopSummary = {
   themeSurface: string | null;
   logoUrl: string | null;
   homepageVariant: string | null;
+  paymentQrImageUrl: string | null;
+  bankName: string | null;
+  bankAccountName: string | null;
+  bankAccountNumber: string | null;
   status: "ACTIVE" | "INACTIVE";
   _count: {
     products: number;
@@ -75,6 +79,10 @@ const initialShopForm = {
   themeSurface: "",
   logoUrl: "",
   homepageVariant: "",
+  paymentQrImageUrl: "",
+  bankName: "",
+  bankAccountName: "",
+  bankAccountNumber: "",
   status: "ACTIVE" as "ACTIVE" | "INACTIVE",
 };
 
@@ -88,6 +96,7 @@ export default function AdminManagementPanel({
   const [creatingStaff, setCreatingStaff] = useState(false);
   const [uploadingHero, setUploadingHero] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingPaymentQr, setUploadingPaymentQr] = useState(false);
   const [shopForm, setShopForm] = useState(initialShopForm);
   const [staffForm, setStaffForm] = useState({
     name: "",
@@ -165,10 +174,7 @@ export default function AdminManagementPanel({
     }
   };
 
-  const uploadShopAsset = async (
-    file: File,
-    kind: "hero" | "logo",
-  ) => {
+  const uploadShopAsset = async (file: File, kind: "hero" | "logo" | "payment-qr") => {
     const slugBase = shopForm.slug.trim() || shopForm.name.trim() || "shop";
     const normalizedSlug = slugBase
       .toLowerCase()
@@ -177,9 +183,17 @@ export default function AdminManagementPanel({
       .replace(/[\s_]+/g, "-")
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "") || "shop";
-    const folder = `shops/${normalizedSlug}/${kind}`;
+    const folder =
+      kind === "payment-qr"
+        ? `shops/${normalizedSlug}/payment`
+        : `shops/${normalizedSlug}/${kind}`;
 
-    const setUploading = kind === "hero" ? setUploadingHero : setUploadingLogo;
+    const setUploading =
+      kind === "hero"
+        ? setUploadingHero
+        : kind === "logo"
+          ? setUploadingLogo
+          : setUploadingPaymentQr;
     setUploading(true);
 
     try {
@@ -216,12 +230,26 @@ export default function AdminManagementPanel({
         return;
       }
 
-      setShopForm((current) => ({
-        ...current,
-        ...(kind === "hero"
-          ? { heroImageUrl: uploadUrlData.publicUrl }
-          : { logoUrl: uploadUrlData.publicUrl }),
-      }));
+      setShopForm((current) => {
+        if (kind === "hero") {
+          return {
+            ...current,
+            heroImageUrl: uploadUrlData.publicUrl ?? "",
+          };
+        }
+
+        if (kind === "logo") {
+          return {
+            ...current,
+            logoUrl: uploadUrlData.publicUrl ?? "",
+          };
+        }
+
+        return {
+          ...current,
+          paymentQrImageUrl: uploadUrlData.publicUrl ?? "",
+        };
+      });
 
       toast.success(kind === "hero" ? "首页图片已上传" : "Logo 已上传");
     } catch {
@@ -504,6 +532,98 @@ export default function AdminManagementPanel({
               </div>
 
               <div className="md:col-span-2">
+                <Label htmlFor="shop-payment-qr">收款二维码 URL</Label>
+                <Input
+                  id="shop-payment-qr"
+                  className="mt-2"
+                  value={shopForm.paymentQrImageUrl}
+                  onChange={(event) =>
+                    setShopForm((current) => ({
+                      ...current,
+                      paymentQrImageUrl: event.target.value,
+                    }))
+                  }
+                  placeholder="https://..."
+                />
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          void uploadShopAsset(file, "payment-qr");
+                        }
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                    {uploadingPaymentQr ? "上传中..." : "上传收款二维码"}
+                  </label>
+                  {shopForm.paymentQrImageUrl ? (
+                    <div className="relative h-20 w-20 overflow-hidden rounded-md border bg-muted">
+                      <Image
+                        src={shopForm.paymentQrImageUrl}
+                        alt="Payment QR preview"
+                        fill
+                        className="object-cover"
+                        sizes="80px"
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="shop-bank-name">银行名称</Label>
+                <Input
+                  id="shop-bank-name"
+                  className="mt-2"
+                  value={shopForm.bankName}
+                  onChange={(event) =>
+                    setShopForm((current) => ({
+                      ...current,
+                      bankName: event.target.value,
+                    }))
+                  }
+                  placeholder="例如：Maybank"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="shop-bank-account-name">账户名称</Label>
+                <Input
+                  id="shop-bank-account-name"
+                  className="mt-2"
+                  value={shopForm.bankAccountName}
+                  onChange={(event) =>
+                    setShopForm((current) => ({
+                      ...current,
+                      bankAccountName: event.target.value,
+                    }))
+                  }
+                  placeholder="例如：Wanshitong Sdn Bhd"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <Label htmlFor="shop-bank-account-number">银行账号</Label>
+                <Input
+                  id="shop-bank-account-number"
+                  className="mt-2"
+                  value={shopForm.bankAccountNumber}
+                  onChange={(event) =>
+                    setShopForm((current) => ({
+                      ...current,
+                      bankAccountNumber: event.target.value,
+                    }))
+                  }
+                  placeholder="例如：1234567890"
+                />
+              </div>
+
+              <div className="md:col-span-2">
                 <Label htmlFor="shop-description">店铺描述</Label>
                 <Textarea
                   id="shop-description"
@@ -636,6 +756,10 @@ export default function AdminManagementPanel({
                     </p>
                     <p>主题主色：{shop.themePrimary ?? "未设置"}</p>
                     <p>首页样式：{shop.homepageVariant ?? "默认"}</p>
+                    <p>收款二维码：{shop.paymentQrImageUrl ? "已设置" : "未设置"}</p>
+                    <p>银行名称：{shop.bankName ?? "未设置"}</p>
+                    <p>账户名称：{shop.bankAccountName ?? "未设置"}</p>
+                    <p>银行账号：{shop.bankAccountNumber ?? "未设置"}</p>
                     <p>商品：{shop._count.products}</p>
                     <p>分类：{shop._count.categories}</p>
                     <p>订单：{shop._count.orders}</p>

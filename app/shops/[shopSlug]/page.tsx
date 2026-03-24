@@ -24,7 +24,14 @@ export default async function ShopHomePage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-background" style={{ backgroundColor: theme.surface }}>
-      <Navbar shopSlug={shop.slug} shopName={shop.name} theme={theme} />
+      <Navbar
+        shopSlug={shop.slug}
+        shopName={shop.name}
+        theme={theme}
+        supportWhatsApp={shop.whatsappPhone}
+        supportTelegram={shop.telegramUsername}
+        hideCart={shop.shopType === "SERVICE"}
+      />
 
       <section
         className="relative overflow-hidden"

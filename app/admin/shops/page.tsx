@@ -32,6 +32,13 @@ export default async function AdminShopsPage() {
     },
     orderBy: { createdAt: "asc" },
   });
+  const typedShops = shops as (typeof shops)[number][] &
+    Array<{
+      paymentQrImageUrl?: string | null;
+      bankName?: string | null;
+      bankAccountName?: string | null;
+      bankAccountNumber?: string | null;
+    }>;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 md:p-8">
@@ -39,13 +46,26 @@ export default async function AdminShopsPage() {
         <AdminNav active="shops" />
         <AdminManagementPanel
           mode="shops"
-          shops={shops.map((shop) => ({
-            ...shop,
-            description: shop.description ?? null,
-            heroTitle: shop.heroTitle ?? null,
-            heroSubtitle: shop.heroSubtitle ?? null,
-            heroImageUrl: shop.heroImageUrl ?? null,
-          }))}
+          shops={typedShops.map((shop) => {
+            const paymentShop = shop as typeof shop & {
+              paymentQrImageUrl?: string | null;
+              bankName?: string | null;
+              bankAccountName?: string | null;
+              bankAccountNumber?: string | null;
+            };
+
+            return {
+              ...shop,
+              description: shop.description ?? null,
+              heroTitle: shop.heroTitle ?? null,
+              heroSubtitle: shop.heroSubtitle ?? null,
+              heroImageUrl: shop.heroImageUrl ?? null,
+              paymentQrImageUrl: paymentShop.paymentQrImageUrl ?? null,
+              bankName: paymentShop.bankName ?? null,
+              bankAccountName: paymentShop.bankAccountName ?? null,
+              bankAccountNumber: paymentShop.bankAccountNumber ?? null,
+            };
+          })}
           staffProfiles={[]}
         />
       </div>

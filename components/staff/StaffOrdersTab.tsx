@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  ExternalLink,
   Loader2,
   MapPin,
   MessageCircle,
@@ -40,25 +41,29 @@ import type { Order, OrderStatus } from "@/types";
 
 type SessionUser = {
   role?: string;
-  name?: string;
   staffShopId?: string | null;
 };
 
 const STATUS_OPTIONS: OrderStatus[] = [
-  "PENDING",
-  "CONFIRMED",
+  "VERIFYING",
   "PROCESSING",
-  "DONE",
+  "SHIPPED",
+  "RECEIVED",
   "CANCELLED",
 ];
 
 const STATUS_LABELS: Record<string, string> = {
   ALL: "全部",
-  PENDING: "待处理",
-  CONFIRMED: "已确认",
+  VERIFYING: "验证中",
   PROCESSING: "处理中",
-  DONE: "已完成",
+  SHIPPED: "已发货",
+  RECEIVED: "已收货",
   CANCELLED: "已取消",
+};
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  QR: "扫码付款",
+  BANK_TRANSFER: "银行转账",
 };
 
 function formatDateTime(value?: string | null) {
@@ -104,31 +109,45 @@ function buildScheduleSummary(order: Order) {
     : `${startText} - ${endText} · 共 ${scheduledItems.length} 个预约项目`;
 }
 
-function buildWhatsAppMessageByStatus(order: Order, nextStatus?: string) {
+function isLikelyImageUrl(value?: string | null) {
+  if (!value) return false;
+  return /\.(png|jpe?g|webp|gif|bmp|svg)(\?|$)/i.test(value);
+}
+
+function buildStatusMessage(order: Order, nextStatus?: string) {
   const status = nextStatus ?? order.status;
 
   switch (status) {
+    case "VERIFYING":
+      return [
+        `您好，${order.customerName ?? "顾客"}，`,
+        `您的订单 #${order.id.slice(-8).toUpperCase()} 正在验证付款中。`,
+        "验证完成后我们会尽快为您处理。",
+      ].join("\n");
     case "PROCESSING":
       return [
         `您好，${order.customerName ?? "顾客"}，`,
-        `您的订单 #${order.id.slice(-8).toUpperCase()} 正在处理中。`,
-        `如有更新，我们会再通知您。`,
+        `您的订单 #${order.id.slice(-8).toUpperCase()} 已进入处理中。`,
+        "我们正在联系店铺安排出货。",
       ].join("\n");
-
-    case "DONE":
+    case "SHIPPED":
       return [
         `您好，${order.customerName ?? "顾客"}，`,
-        `您的订单 #${order.id.slice(-8).toUpperCase()} 已完成。`,
-        `感谢您的支持。`,
+        `您的订单 #${order.id.slice(-8).toUpperCase()} 已发货。`,
+        "收到商品后可在订单页确认收货。",
       ].join("\n");
-
+    case "RECEIVED":
+      return [
+        `您好，${order.customerName ?? "顾客"}，`,
+        `您的订单 #${order.id.slice(-8).toUpperCase()} 已完成收货。`,
+        "感谢您的支持。",
+      ].join("\n");
     case "CANCELLED":
       return [
         `您好，${order.customerName ?? "顾客"}，`,
         `很抱歉，您的订单 #${order.id.slice(-8).toUpperCase()} 已取消。`,
-        `如需协助，请直接回复我们。`,
+        "如需协助，请直接联系平台客服。",
       ].join("\n");
-
     default:
       return [
         `您好，${order.customerName ?? "顾客"}，`,
@@ -139,8 +158,14 @@ function buildWhatsAppMessageByStatus(order: Order, nextStatus?: string) {
 
 function buildWhatsAppLink(phone: string, order: Order, nextStatus?: string) {
   const cleanPhone = phone.replace(/\D/g, "");
-  const text = encodeURIComponent(buildWhatsAppMessageByStatus(order, nextStatus));
+  const text = encodeURIComponent(buildStatusMessage(order, nextStatus));
   return `https://wa.me/${cleanPhone}?text=${text}`;
+}
+
+function buildDirectWhatsAppLink(phone: string, text?: string) {
+  const cleanPhone = phone.replace(/\D/g, "");
+  const encoded = text ? `?text=${encodeURIComponent(text)}` : "";
+  return `https://wa.me/${cleanPhone}${encoded}`;
 }
 
 export default function StaffOrdersTab() {
@@ -150,7 +175,7 @@ export default function StaffOrdersTab() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [filterStatus, setFilterStatus] = useState("ALL");
   const [searchOrderId, setSearchOrderId] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -164,8 +189,11 @@ export default function StaffOrdersTab() {
         ? "/api/staff/shop/orders"
         : `/api/staff/shop/orders?status=${filterStatus}`;
 
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("加载订单失败");
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) {
+      throw new Error("加载订单失败");
+    }
+
     return (await res.json()) as Order[];
   }, [filterStatus]);
 
@@ -182,26 +210,8 @@ export default function StaffOrdersTab() {
   }, [fetchOrders]);
 
   useEffect(() => {
-    let active = true;
-
-    const run = async () => {
-      setLoading(true);
-      try {
-        const data = await fetchOrders();
-        if (active) setOrders(data);
-      } catch {
-        if (active) toast.error("加载订单失败");
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-
-    void run();
-
-    return () => {
-      active = false;
-    };
-  }, [fetchOrders]);
+    void loadOrders();
+  }, [loadOrders]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -216,19 +226,19 @@ export default function StaffOrdersTab() {
       setConnected(true);
     };
 
-    if (socket.connected) joinRoom();
+    if (socket.connected) {
+      joinRoom();
+    }
 
     socket.on(SOCKET_EVENTS.CONNECT, joinRoom);
     socket.on(SOCKET_EVENTS.DISCONNECT, () => setConnected(false));
     socket.on(SOCKET_EVENTS.NEW_ORDER, (order: Order) => {
-      toast.success(`收到新订单！来自 ${order.customerName ?? "访客"}`, {
-        description: `RM${Number(order.totalAmount).toFixed(2)} · 共 ${order.items.length} 项`,
-      });
+      toast.success(`收到新订单：${order.customerName ?? "顾客"}`);
       setOrders((prev) => [order, ...prev]);
     });
     socket.on(SOCKET_EVENTS.ORDER_UPDATED, (updated: Order) => {
       setOrders((prev) => prev.map((order) => (order.id === updated.id ? updated : order)));
-      if (selectedOrder?.id === updated.id) setSelectedOrder(updated);
+      setSelectedOrder((prev) => (prev?.id === updated.id ? updated : prev));
     });
 
     return () => {
@@ -237,7 +247,7 @@ export default function StaffOrdersTab() {
       socket.off(SOCKET_EVENTS.NEW_ORDER);
       socket.off(SOCKET_EVENTS.ORDER_UPDATED);
     };
-  }, [currentUser?.role, currentUser?.staffShopId, selectedOrder?.id]);
+  }, [currentUser?.role, currentUser?.staffShopId]);
 
   useEffect(() => {
     setPage(1);
@@ -261,16 +271,16 @@ export default function StaffOrdersTab() {
       }
 
       const updatedOrder = data as Order;
-
       setOrders((prev) => prev.map((order) => (order.id === orderId ? updatedOrder : order)));
-      if (selectedOrder?.id === orderId) {
-        setSelectedOrder(updatedOrder);
-      }
+      setSelectedOrder((prev) => (prev?.id === orderId ? updatedOrder : prev));
 
       toast.success("订单状态已更新");
 
       if (updatedOrder.customerPhone) {
-        window.open(buildWhatsAppLink(updatedOrder.customerPhone, updatedOrder, newStatus), "_blank");
+        window.open(
+          buildWhatsAppLink(updatedOrder.customerPhone, updatedOrder, newStatus),
+          "_blank",
+        );
       }
     } catch {
       toast.error("更新失败，请重试");
@@ -297,12 +307,15 @@ export default function StaffOrdersTab() {
 
   const stats = {
     total: orders.length,
-    pending: orders.filter((order) => order.status === "PENDING").length,
+    verifying: orders.filter((order) => order.status === "VERIFYING").length,
     processing: orders.filter((order) => order.status === "PROCESSING").length,
-    done: orders.filter((order) => order.status === "DONE").length,
+    shipped: orders.filter((order) => order.status === "SHIPPED").length,
   };
 
-  const cleanedTelegram = selectedOrder?.telegramUsername?.trim().replace(/^@+/, "") ?? "";
+  const cleanedTelegram =
+    selectedOrder?.telegramUsername?.trim().replace(/^@+/, "") ?? "";
+  const cleanedShopTelegram =
+    selectedOrder?.shop?.telegramUsername?.trim().replace(/^@+/, "") ?? "";
 
   if (loading) {
     return (
@@ -327,7 +340,7 @@ export default function StaffOrdersTab() {
           )}
         </div>
 
-        <Button variant="outline" size="sm" onClick={loadOrders} className="flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={() => void loadOrders()} className="flex items-center gap-2">
           <RefreshCw className="h-4 w-4" /> 刷新
         </Button>
       </div>
@@ -335,9 +348,9 @@ export default function StaffOrdersTab() {
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
           { label: "总订单数", value: stats.total, color: "text-foreground" },
-          { label: "待处理", value: stats.pending, color: "text-yellow-600" },
-          { label: "处理中", value: stats.processing, color: "text-purple-600" },
-          { label: "已完成", value: stats.done, color: "text-green-600" },
+          { label: "验证中", value: stats.verifying, color: "text-amber-600" },
+          { label: "处理中", value: stats.processing, color: "text-blue-600" },
+          { label: "已发货", value: stats.shipped, color: "text-indigo-600" },
         ].map(({ label, value, color }) => (
           <Card key={label}>
             <CardContent className="pt-6">
@@ -422,6 +435,15 @@ export default function StaffOrdersTab() {
                         </p>
                       )}
 
+                      {order.paymentMethod && (
+                        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Package className="h-3 w-3" />
+                          付款方式：
+                          {PAYMENT_METHOD_LABELS[order.paymentMethod] ?? order.paymentMethod}
+                          {order.paymentReceiptUrl ? " · 已上传凭证" : ""}
+                        </p>
+                      )}
+
                       {order.deliveryCity && (
                         <p className="flex items-center gap-1 text-xs text-muted-foreground">
                           <MapPin className="h-3 w-3" />
@@ -435,8 +457,12 @@ export default function StaffOrdersTab() {
 
                       <Select
                         value={order.status}
-                        onValueChange={(value) => updateStatus(order.id, value as OrderStatus)}
-                        disabled={updatingId === order.id || order.status === "CANCELLED"}
+                        onValueChange={(value) => void updateStatus(order.id, value as OrderStatus)}
+                        disabled={
+                          updatingId === order.id ||
+                          order.status === "CANCELLED" ||
+                          order.status === "RECEIVED"
+                        }
                       >
                         <SelectTrigger
                           className="h-8 w-28 text-xs"
@@ -519,7 +545,7 @@ export default function StaffOrdersTab() {
                     className="inline-flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 transition-colors hover:bg-green-100"
                   >
                     <MessageCircle className="h-4 w-4" />
-                    WhatsApp 联系：{selectedOrder.customerPhone}
+                    联系顾客 WhatsApp：{selectedOrder.customerPhone}
                   </a>
                 )}
 
@@ -531,7 +557,34 @@ export default function StaffOrdersTab() {
                     className="flex items-center gap-2 text-sm text-sky-600 hover:underline"
                   >
                     <MessageCircle className="h-4 w-4" />
-                    Telegram 联系：@{cleanedTelegram}
+                    联系顾客 Telegram：@{cleanedTelegram}
+                  </a>
+                )}
+
+                {selectedOrder.shop?.whatsappPhone && (
+                  <a
+                    href={buildDirectWhatsAppLink(
+                      selectedOrder.shop.whatsappPhone,
+                      `您好，这里是万事通工作人员，关于订单 ${selectedOrder.id} 需要和您确认。`,
+                    )}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 transition-colors hover:bg-amber-100"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    联系店铺 WhatsApp：{selectedOrder.shop.whatsappPhone}
+                  </a>
+                )}
+
+                {cleanedShopTelegram && (
+                  <a
+                    href={`https://t.me/${cleanedShopTelegram}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-sky-600 hover:underline"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    联系店铺 Telegram：@{cleanedShopTelegram}
                   </a>
                 )}
               </div>
@@ -558,6 +611,54 @@ export default function StaffOrdersTab() {
 
               {selectedOrder.notes && (
                 <p className="rounded-lg bg-muted px-4 py-3 text-sm">备注：{selectedOrder.notes}</p>
+              )}
+
+              {(selectedOrder.paymentMethod || selectedOrder.paymentReceiptUrl) && (
+                <div className="space-y-3 rounded-lg bg-muted/50 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    付款信息
+                  </p>
+
+                  {selectedOrder.paymentMethod && (
+                    <p className="text-sm">
+                      付款方式：
+                      <span className="ml-1 font-medium">
+                        {PAYMENT_METHOD_LABELS[selectedOrder.paymentMethod] ??
+                          selectedOrder.paymentMethod}
+                      </span>
+                    </p>
+                  )}
+
+                  {selectedOrder.paymentReceiptUploadedAt && (
+                    <p className="text-sm text-muted-foreground">
+                      上传时间：{formatDateTime(selectedOrder.paymentReceiptUploadedAt)}
+                    </p>
+                  )}
+
+                  {selectedOrder.paymentReceiptUrl && (
+                    <div className="space-y-3">
+                      <a
+                        href={selectedOrder.paymentReceiptUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm text-sky-600 hover:underline"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        查看付款凭证
+                      </a>
+
+                      {isLikelyImageUrl(selectedOrder.paymentReceiptUrl) && (
+                        <div className="overflow-hidden rounded-xl border bg-white">
+                          <img
+                            src={selectedOrder.paymentReceiptUrl}
+                            alt="付款凭证"
+                            className="max-h-80 w-full object-contain"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
 
               <Separator />

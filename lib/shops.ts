@@ -136,6 +136,8 @@ export const STAFF_ORDER_INCLUDE = {
       id: true,
       name: true,
       slug: true,
+      whatsappPhone: true,
+      telegramUsername: true,
     },
   },
   items: {
@@ -154,16 +156,16 @@ export const STAFF_ORDER_INCLUDE = {
   },
 } satisfies Prisma.OrderInclude;
 
-export const VALID_ORDER_STATUSES: OrderStatus[] = [
-  "PENDING",
-  "CONFIRMED",
+export const VALID_ORDER_STATUSES = [
+  "VERIFYING",
   "PROCESSING",
-  "DONE",
+  "SHIPPED",
+  "RECEIVED",
   "CANCELLED",
-];
+] as const;
 
 export function isValidOrderStatus(value: string | null): value is OrderStatus {
-  return !!value && VALID_ORDER_STATUSES.includes(value as OrderStatus);
+  return !!value && VALID_ORDER_STATUSES.includes(value as (typeof VALID_ORDER_STATUSES)[number]);
 }
 
 export function getShopLandingCards(shops: Shop[]) {

@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
+import ProfileOrdersTab from "@/components/profile/ProfileOrdersTab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -553,9 +554,17 @@ function OrdersTab() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   const [statusFilter, setStatusFilter] = useState<
-    "ALL" | "PENDING" | "PROCESSING" | "COMPLETED" | "CANCELLED"
+    | "ALL"
+    | "PENDING"
+    | "PROCESSING"
+    | "COMPLETED"
+    | "CANCELLED"
+    | "VERIFYING"
+    | "SHIPPED"
+    | "RECEIVED"
   >("ALL");
   const [currentPage, setCurrentPage] = useState(1);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const ORDERS_PER_PAGE = 6;
 
@@ -1140,7 +1149,7 @@ export default function ProfilePage() {
             <AddressesTab />
           </TabsContent>
           <TabsContent value="orders">
-            <OrdersTab />
+            <ProfileOrdersTab />
           </TabsContent>
         </Tabs>
       </div>

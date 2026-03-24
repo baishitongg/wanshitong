@@ -7,6 +7,8 @@ import {
 } from "@/lib/shops";
 import type { ContactChannel, OrderStatus, Prisma } from "@prisma/client";
 
+const AUTO_RECEIVE_DAYS = 20;
+
 type CreateOrderInput = {
   shopId: string;
   userId: string;
@@ -17,6 +19,8 @@ type CreateOrderInput = {
   notes?: string | null;
   addressId?: string | null;
   selectedProductIds?: string[];
+  paymentMethod?: "QR" | "BANK_TRANSFER" | null;
+  paymentReceiptUrl?: string | null;
 };
 
 type CartLineItem = {
@@ -262,6 +266,7 @@ export async function createOrderFromCart(input: CreateOrderInput) {
     .trim()
     .replace(/^@+/, "");
   const preferredChannel = input.preferredContactChannel ?? "PHONE";
+  const paymentReceiptUrl = input.paymentReceiptUrl?.trim() || null;
 
   if (preferredChannel === "PHONE" && !resolvedPhone) {
     throw new Error("PHONE_REQUIRED");
@@ -269,6 +274,14 @@ export async function createOrderFromCart(input: CreateOrderInput) {
 
   if (preferredChannel === "TELEGRAM" && !resolvedTelegram) {
     throw new Error("TELEGRAM_REQUIRED");
+  }
+
+  if (!input.paymentMethod) {
+    throw new Error("PAYMENT_METHOD_REQUIRED");
+  }
+
+  if (!paymentReceiptUrl) {
+    throw new Error("PAYMENT_RECEIPT_REQUIRED");
   }
 
   const order = await prisma.$transaction(async (tx) => {
@@ -350,6 +363,9 @@ export async function createOrderFromCart(input: CreateOrderInput) {
         scheduledDate: bookingSnapshot?.scheduledStart ?? null,
         scheduledStartTime: bookingSnapshot?.scheduledStart ?? null,
         scheduledEndTime: bookingSnapshot?.scheduledEnd ?? null,
+        paymentMethod: input.paymentMethod,
+        paymentReceiptUrl,
+        paymentReceiptUploadedAt: paymentReceiptUrl ? new Date() : null,
         items: {
           create: selectedItems.map((item) => ({
             productId: item.productId,
@@ -362,7 +378,7 @@ export async function createOrderFromCart(input: CreateOrderInput) {
             scheduledEnd: item.scheduledEnd ?? null,
           })),
         },
-      },
+      } as never,
       include: STAFF_ORDER_INCLUDE,
     });
 
@@ -392,6 +408,11 @@ export async function createOrderFromCart(input: CreateOrderInput) {
 }
 
 export async function getOrdersForUserShop(userId: string, shopId: string) {
+  await autoReceiveShippedOrders({
+    userId,
+    shopId,
+  });
+
   const orders = await prisma.order.findMany({
     where: {
       userId,
@@ -424,6 +445,8 @@ export async function getOrdersForUserShop(userId: string, shopId: string) {
 }
 
 export async function getStaffOrders(where: Prisma.OrderWhereInput) {
+  await autoReceiveShippedOrders(where);
+
   const orders = await prisma.order.findMany({
     where,
     include: STAFF_ORDER_INCLUDE,
@@ -433,8 +456,29 @@ export async function getStaffOrders(where: Prisma.OrderWhereInput) {
   return orders.map(serializeOrder);
 }
 
-export async function updateOrderStatus(orderId: string, nextStatus: OrderStatus, scope?: { shopId?: string }) {
-  if (!VALID_ORDER_STATUSES.includes(nextStatus)) {
+export async function autoReceiveShippedOrders(where?: Prisma.OrderWhereInput) {
+  const cutoff = new Date(Date.now() - AUTO_RECEIVE_DAYS * 24 * 60 * 60 * 1000);
+
+  await prisma.order.updateMany({
+    where: {
+      status: "SHIPPED" as never,
+      updatedAt: {
+        lte: cutoff,
+      },
+      ...(where ?? {}),
+    } as never,
+    data: {
+      status: "RECEIVED" as never,
+    } as never,
+  });
+}
+
+export async function updateOrderStatus(
+  orderId: string,
+  nextStatus: OrderStatus,
+  scope?: { shopId?: string; userId?: string },
+) {
+  if (!VALID_ORDER_STATUSES.includes(nextStatus as (typeof VALID_ORDER_STATUSES)[number])) {
     throw new Error("INVALID_STATUS");
   }
 
@@ -443,6 +487,7 @@ export async function updateOrderStatus(orderId: string, nextStatus: OrderStatus
       where: {
         id: orderId,
         ...(scope?.shopId ? { shopId: scope.shopId } : {}),
+        ...(scope?.userId ? { userId: scope.userId } : {}),
       },
       include: {
         items: true,
@@ -453,11 +498,16 @@ export async function updateOrderStatus(orderId: string, nextStatus: OrderStatus
       throw new Error("ORDER_NOT_FOUND");
     }
 
-    if (existingOrder.status === "CANCELLED" && nextStatus !== "CANCELLED") {
-      throw new Error("ORDER_CANCELLED_LOCKED");
+    const existingStatus = String(existingOrder.status);
+
+    if (
+      (existingStatus === "CANCELLED" || existingStatus === "RECEIVED") &&
+      nextStatus !== existingStatus
+    ) {
+      throw new Error("ORDER_STATUS_LOCKED");
     }
 
-      if (existingOrder.status !== "CANCELLED" && nextStatus === "CANCELLED") {
+    if (existingStatus !== "CANCELLED" && nextStatus === "CANCELLED") {
       for (const item of existingOrder.items) {
         if (item.itemType !== "SERVICE") {
           await tx.product.update({

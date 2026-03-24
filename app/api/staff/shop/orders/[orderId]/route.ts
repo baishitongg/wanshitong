@@ -19,7 +19,13 @@ export async function GET(_req: Request, { params }: Params) {
       },
       include: {
         shop: {
-          select: { id: true, name: true, slug: true },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            whatsappPhone: true,
+            telegramUsername: true,
+          },
         },
         items: {
           include: { product: true },
@@ -90,7 +96,7 @@ export async function PATCH(req: Request, { params }: Params) {
     const message = error instanceof Error ? error.message : "UNKNOWN";
     const map: Record<string, number> = {
       ORDER_NOT_FOUND: 404,
-      ORDER_CANCELLED_LOCKED: 400,
+      ORDER_STATUS_LOCKED: 400,
       INVALID_STATUS: 400,
       FORBIDDEN: 403,
       UNAUTHORIZED: 401,

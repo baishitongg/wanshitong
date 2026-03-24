@@ -48,6 +48,10 @@ export async function POST(req: Request) {
       themeSurface?: string | null;
       logoUrl?: string | null;
       homepageVariant?: string | null;
+      paymentQrImageUrl?: string | null;
+      bankName?: string | null;
+      bankAccountName?: string | null;
+      bankAccountNumber?: string | null;
       status?: ShopStatus;
     };
 
@@ -72,6 +76,10 @@ export async function POST(req: Request) {
       themeSurface: body.themeSurface,
       logoUrl: body.logoUrl,
       homepageVariant: body.homepageVariant,
+      paymentQrImageUrl: body.paymentQrImageUrl,
+      bankName: body.bankName,
+      bankAccountName: body.bankAccountName,
+      bankAccountNumber: body.bankAccountNumber,
       status: body.status,
     });
 

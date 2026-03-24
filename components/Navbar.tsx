@@ -45,6 +45,7 @@ type NavbarProps = {
   theme?: ShopTheme;
   supportWhatsApp?: string | null;
   supportTelegram?: string | null;
+  hideCart?: boolean;
 };
 
 const SUPPORT_WHATSAPP = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP ?? "";
@@ -52,7 +53,7 @@ const SUPPORT_TELEGRAM = process.env.NEXT_PUBLIC_SUPPORT_TELEGRAM ?? "";
 
 function buildWhatsAppLink(phone: string) {
   const normalized = phone.replace(/[^\d]/g, "");
-  const text = encodeURIComponent("您好，我想咨询一下店铺服务。");
+  const text = encodeURIComponent("您好，我想咨询一下服务。");
   return `https://wa.me/${normalized}?text=${text}`;
 }
 
@@ -67,6 +68,7 @@ export default function Navbar({
   theme,
   supportWhatsApp,
   supportTelegram,
+  hideCart = false,
 }: NavbarProps) {
   const { data: session, status } = useSession();
   const user = session?.user as SessionUser | undefined;
@@ -74,20 +76,26 @@ export default function Navbar({
   const [cartOpen, setCartOpen] = useState(false);
 
   const { items, fetchCart, resetCart } = useShopCart(shopSlug ?? "__platform__");
-  const showCart = Boolean(shopSlug);
+  const isShopContext = Boolean(shopSlug);
+  const showCart = Boolean(shopSlug) && !hideCart;
   const guideHref = shopSlug ? buildShopHref(shopSlug, "/how-to-use") : null;
   const totalItems = useMemo(
     () => items.reduce((sum, item) => sum + item.quantity, 0),
     [items],
   );
 
-  const whatsappHref = supportWhatsApp
-    ? buildWhatsAppLink(supportWhatsApp)
+  const whatsappHref = isShopContext
+    ? supportWhatsApp
+      ? buildWhatsAppLink(supportWhatsApp)
+      : null
     : SUPPORT_WHATSAPP
       ? buildWhatsAppLink(SUPPORT_WHATSAPP)
       : null;
-  const telegramHref = supportTelegram
-    ? buildTelegramLink(supportTelegram)
+
+  const telegramHref = isShopContext
+    ? supportTelegram
+      ? buildTelegramLink(supportTelegram)
+      : null
     : SUPPORT_TELEGRAM
       ? buildTelegramLink(SUPPORT_TELEGRAM)
       : null;
@@ -98,14 +106,14 @@ export default function Navbar({
   const subtleHover = theme ? withAlpha(theme.secondary, 0.22) : undefined;
 
   useEffect(() => {
-    if (!shopSlug) return;
+    if (!shopSlug || hideCart) return;
 
     if (status === "authenticated") {
       fetchCart();
     } else if (status === "unauthenticated") {
       resetCart();
     }
-  }, [fetchCart, resetCart, shopSlug, status]);
+  }, [fetchCart, hideCart, resetCart, shopSlug, status]);
 
   return (
     <>
@@ -369,7 +377,7 @@ export default function Navbar({
         </div>
       </header>
 
-      {shopSlug && <CartDrawer shopSlug={shopSlug} open={cartOpen} onOpenChange={setCartOpen} />}
+      {showCart && <CartDrawer shopSlug={shopSlug!} open={cartOpen} onOpenChange={setCartOpen} />}
     </>
   );
 }

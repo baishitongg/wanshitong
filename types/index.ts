@@ -5,6 +5,7 @@ export type ItemType = "PHYSICAL" | "SERVICE";
 export type FulfillmentType = "DELIVERY" | "PICKUP" | "BOOKING";
 export type OrderFlowType = "DELIVERY" | "PICKUP" | "BOOKING";
 export type ServiceLocationType = "ONSITE" | "CUSTOMER_PLACE" | "ONLINE";
+export type PaymentMethod = "QR" | "BANK_TRANSFER";
 export type ServiceWeekday =
     | "MONDAY"
     | "TUESDAY"
@@ -15,10 +16,10 @@ export type ServiceWeekday =
     | "SUNDAY";
 
 export type OrderStatus =
-    | "PENDING"
-    | "CONFIRMED"
+    | "VERIFYING"
     | "PROCESSING"
-    | "DONE"
+    | "SHIPPED"
+    | "RECEIVED"
     | "CANCELLED";
 
 export interface Category {
@@ -129,8 +130,19 @@ export interface Order {
     serviceLocationType: ServiceLocationType | null;
     serviceAddressText: string | null;
     bookingReference: string | null;
+    paymentMethod: PaymentMethod | null;
+    paymentReceiptUrl: string | null;
+    paymentReceiptUploadedAt: string | null;
     items: OrderItem[];
-    shop?: { id: string; name: string; slug: string } | null;
+    shop?:
+        | {
+              id: string;
+              name: string;
+              slug: string;
+              whatsappPhone?: string | null;
+              telegramUsername?: string | null;
+          }
+        | null;
     user?: CurrentUser | null;
     createdAt: string;
     updatedAt: string;
@@ -154,6 +166,10 @@ export interface Shop {
     themeSurface: string | null;
     logoUrl: string | null;
     homepageVariant: string | null;
+    paymentQrImageUrl: string | null;
+    bankName: string | null;
+    bankAccountName: string | null;
+    bankAccountNumber: string | null;
     status: "ACTIVE" | "INACTIVE";
     createdAt?: string | Date;
     updatedAt?: string | Date;

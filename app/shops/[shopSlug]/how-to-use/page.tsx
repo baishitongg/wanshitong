@@ -86,7 +86,14 @@ export default async function ShopHowToUsePage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-background" style={{ backgroundColor: theme.surface }}>
-      <Navbar shopSlug={shop.slug} shopName={shop.name} theme={theme} />
+      <Navbar
+        shopSlug={shop.slug}
+        shopName={shop.name}
+        theme={theme}
+        supportWhatsApp={shop.whatsappPhone}
+        supportTelegram={shop.telegramUsername}
+        hideCart={shop.shopType === "SERVICE"}
+      />
 
       <div className="container mx-auto max-w-5xl px-6 py-8 md:px-20 md:py-10">
         <Link

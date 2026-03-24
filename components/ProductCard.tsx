@@ -5,11 +5,11 @@ import { Package, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useShopCart } from "@/lib/store/cartStore";
-import type { Product } from "@/types";
 import type { ShopTheme } from "@/lib/shopTheme";
+import type { Product } from "@/types";
 
 interface ProductCardProps extends Product {
   shopSlug?: string;
@@ -28,6 +28,7 @@ export default function ProductCard({
   const { data: session } = useSession();
   const router = useRouter();
   const { addItem } = useShopCart(shopSlug ?? "__platform__");
+
   const isService =
     product.itemType === "SERVICE" ||
     product.requiresScheduling ||
@@ -38,6 +39,16 @@ export default function ProductCard({
     event.preventDefault();
     event.stopPropagation();
 
+    if (isService) {
+      if (!shopSlug) {
+        toast.error("当前服务未绑定店铺上下文");
+        return;
+      }
+
+      router.push(`/shops/${shopSlug}/product/${product.id}`);
+      return;
+    }
+
     if (!session?.user) {
       toast.error("请先登录后再继续");
       router.push("/login");
@@ -46,11 +57,6 @@ export default function ProductCard({
 
     if (!shopSlug) {
       toast.error("当前商品未绑定店铺上下文");
-      return;
-    }
-
-    if (isService) {
-      router.push(`/shops/${shopSlug}/product/${product.id}`);
       return;
     }
 
@@ -136,7 +142,7 @@ export default function ProductCard({
               disabled={outOfStock}
             >
               <ShoppingCart className="mr-1 h-3 w-3" />
-              {isService ? "选择时段" : "加购"}
+              {isService ? "预约" : "加购"}
             </Button>
           ) : (
             <Button
@@ -154,7 +160,7 @@ export default function ProductCard({
         </div>
 
         <p className="min-h-5 pt-2 text-xs text-muted-foreground">
-          {isService ? "需先选择预约时段" : !outOfStock ? `库存 ${product.stock} 件` : ""}
+          {isService ? "点击查看详情并联系店铺预约" : !outOfStock ? `库存 ${product.stock} 件` : ""}
         </p>
       </div>
     </div>

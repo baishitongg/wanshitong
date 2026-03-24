@@ -45,6 +45,10 @@ type CreateShopInput = {
   themeSurface?: string | null;
   logoUrl?: string | null;
   homepageVariant?: string | null;
+  paymentQrImageUrl?: string | null;
+  bankName?: string | null;
+  bankAccountName?: string | null;
+  bankAccountNumber?: string | null;
   status?: ShopStatus;
 };
 
@@ -98,8 +102,12 @@ export async function createShop(input: CreateShopInput) {
       themeSurface: input.themeSurface?.trim() || null,
       logoUrl: input.logoUrl?.trim() || null,
       homepageVariant: input.homepageVariant?.trim() || null,
+      paymentQrImageUrl: input.paymentQrImageUrl?.trim() || null,
+      bankName: input.bankName?.trim() || null,
+      bankAccountName: input.bankAccountName?.trim() || null,
+      bankAccountNumber: input.bankAccountNumber?.trim() || null,
       status: input.status ?? "ACTIVE",
-    },
+    } as never,
   });
 }
 

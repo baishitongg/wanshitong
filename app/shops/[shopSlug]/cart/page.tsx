@@ -11,5 +11,13 @@ export default async function ShopCartRoutePage({ params }: Props) {
   const shop = await requireShopBySlug(shopSlug);
   const theme = resolveShopTheme(shop);
 
-  return <ShopCartPage shopSlug={shop.slug} shopName={shop.name} theme={theme} />;
+  return (
+    <ShopCartPage
+      shopSlug={shop.slug}
+      shopName={shop.name}
+      theme={theme}
+      supportWhatsApp={shop.whatsappPhone}
+      supportTelegram={shop.telegramUsername}
+    />
+  );
 }
