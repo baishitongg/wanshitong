@@ -1,5 +1,6 @@
 export type Role = "CUSTOMER" | "STAFF" | "ADMIN";
 export type ShopType = "PRODUCT" | "SERVICE" | "HYBRID";
+export type OwnershipType = "MARKETPLACE" | "SELF_OPERATED";
 export type CheckoutMode = "DELIVERY" | "BOOKING" | "FLEXIBLE";
 export type ItemType = "PHYSICAL" | "SERVICE";
 export type FulfillmentType = "DELIVERY" | "PICKUP" | "BOOKING";
@@ -36,6 +37,7 @@ export interface Product {
     name: string;
     description: string | null;
     price: number;
+    costPrice?: number | null;
     stock: number;
     imageUrl: string | null;
     status: boolean;
@@ -95,6 +97,7 @@ export interface OrderItem {
     productId: string;
     quantity: number;
     unitPrice: number;
+    costPriceSnapshot?: number | null;
     itemType?: ItemType | null;
     fulfillmentType?: FulfillmentType | null;
     scheduledDate?: string | null;
@@ -133,6 +136,8 @@ export interface Order {
     paymentMethod: PaymentMethod | null;
     paymentReceiptUrl: string | null;
     paymentReceiptUploadedAt: string | null;
+    assignedStaffUserId: string | null;
+    assignedToStaffAt: string | null;
     items: OrderItem[];
     shop?:
         | {
@@ -144,6 +149,7 @@ export interface Order {
           }
         | null;
     user?: CurrentUser | null;
+    assignedStaff?: { id: string; name: string | null; phone: string } | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -159,6 +165,7 @@ export interface Shop {
     whatsappPhone: string | null;
     telegramUsername: string | null;
     shopType: ShopType;
+    ownershipType: OwnershipType;
     checkoutMode: CheckoutMode;
     themePrimary: string | null;
     themeSecondary: string | null;

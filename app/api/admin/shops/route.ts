@@ -41,6 +41,7 @@ export async function POST(req: Request) {
       whatsappPhone?: string | null;
       telegramUsername?: string | null;
       shopType?: ShopType;
+      ownershipType?: "MARKETPLACE" | "SELF_OPERATED";
       checkoutMode?: CheckoutMode;
       themePrimary?: string | null;
       themeSecondary?: string | null;
@@ -69,6 +70,7 @@ export async function POST(req: Request) {
       whatsappPhone: body.whatsappPhone,
       telegramUsername: body.telegramUsername,
       shopType: body.shopType,
+      ownershipType: body.ownershipType,
       checkoutMode: body.checkoutMode,
       themePrimary: body.themePrimary,
       themeSecondary: body.themeSecondary,

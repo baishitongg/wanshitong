@@ -171,10 +171,10 @@ export default async function AdminPage({ searchParams }: PageProps) {
 
   if (status !== "ALL") {
     const validStatuses: OrderStatus[] = [
-      "PENDING",
-      "CONFIRMED",
+      "VERIFYING",
       "PROCESSING",
-      "DONE",
+      "SHIPPED",
+      "RECEIVED",
       "CANCELLED",
     ];
 

@@ -40,6 +40,7 @@ type TokenFields = {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
     secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+    trustHost: true,
     providers: [
         Credentials({
             name: "手机号登录",

@@ -20,6 +20,7 @@ type ShopSummary = {
   whatsappPhone: string | null;
   telegramUsername: string | null;
   shopType: "PRODUCT" | "SERVICE" | "HYBRID";
+  ownershipType: "MARKETPLACE" | "SELF_OPERATED";
   checkoutMode: "DELIVERY" | "BOOKING" | "FLEXIBLE";
   themePrimary: string | null;
   themeSecondary: string | null;
@@ -72,6 +73,7 @@ const initialShopForm = {
   whatsappPhone: "",
   telegramUsername: "",
   shopType: "PRODUCT" as "PRODUCT" | "SERVICE" | "HYBRID",
+  ownershipType: "MARKETPLACE" as "MARKETPLACE" | "SELF_OPERATED",
   checkoutMode: "DELIVERY" as "DELIVERY" | "BOOKING" | "FLEXIBLE",
   themePrimary: "",
   themeSecondary: "",
@@ -338,6 +340,26 @@ export default function AdminManagementPanel({
                   <option value="PRODUCT">PRODUCT</option>
                   <option value="SERVICE">SERVICE</option>
                   <option value="HYBRID">HYBRID</option>
+                </select>
+              </div>
+
+              <div>
+                <Label htmlFor="ownership-type">经营归属</Label>
+                <select
+                  id="ownership-type"
+                  value={shopForm.ownershipType}
+                  onChange={(event) =>
+                    setShopForm((current) => ({
+                      ...current,
+                      ownershipType: event.target.value as
+                        | "MARKETPLACE"
+                        | "SELF_OPERATED",
+                    }))
+                  }
+                  className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="MARKETPLACE">MARKETPLACE</option>
+                  <option value="SELF_OPERATED">SELF_OPERATED</option>
                 </select>
               </div>
 
@@ -746,6 +768,7 @@ export default function AdminManagementPanel({
 
                   <div className="mt-3 grid gap-2 text-sm text-gray-600 sm:grid-cols-2 xl:grid-cols-4">
                     <p>店铺类型：{shop.shopType}</p>
+                    <p>经营归属：{shop.ownershipType}</p>
                     <p>结算模式：{shop.checkoutMode}</p>
                     <p>WhatsApp：{shop.whatsappPhone ?? "未设置"}</p>
                     <p>

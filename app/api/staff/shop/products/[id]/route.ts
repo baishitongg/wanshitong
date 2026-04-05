@@ -8,6 +8,7 @@ type Body = {
   name?: string;
   description?: string | null;
   price?: number;
+  costPrice?: number | null;
   stock?: number;
   categoryId?: string;
   imageUrl?: string | null;
@@ -34,7 +35,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const shop = await prisma.shop.findUnique({
       where: { id: context.shopId! },
-      select: { id: true, shopType: true },
+      select: { id: true, shopType: true, ownershipType: true },
     });
 
     if (!shop) {
@@ -76,6 +77,9 @@ export async function PATCH(req: Request, { params }: Params) {
       ...(body.name !== undefined ? { name: body.name } : {}),
       ...(body.description !== undefined ? { description: body.description ?? null } : {}),
       ...(body.price !== undefined ? { price: body.price } : {}),
+      ...(body.costPrice !== undefined && shop.ownershipType === "SELF_OPERATED"
+        ? { costPrice: body.costPrice ?? null }
+        : {}),
       ...(body.stock !== undefined && !isServiceShop ? { stock: body.stock } : {}),
       ...(body.categoryId !== undefined ? { categoryId: body.categoryId } : {}),
       ...(body.imageUrl !== undefined ? { imageUrl: body.imageUrl ?? null } : {}),

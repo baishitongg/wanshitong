@@ -34,6 +34,7 @@ type CartLineItem = {
   product: {
     id: string;
     price: Prisma.Decimal | number;
+    costPrice?: Prisma.Decimal | number | null;
     stock: number;
     itemType: "PHYSICAL" | "SERVICE";
     fulfillmentType: "DELIVERY" | "PICKUP" | "BOOKING";
@@ -371,6 +372,10 @@ export async function createOrderFromCart(input: CreateOrderInput) {
             productId: item.productId,
             quantity: item.quantity,
             unitPrice: item.product.price,
+            costPriceSnapshot:
+              item.product.costPrice === undefined || item.product.costPrice === null
+                ? null
+                : item.product.costPrice,
             itemType: item.product.itemType,
             fulfillmentType: item.product.fulfillmentType,
             scheduledDate: item.scheduledStart ?? null,
@@ -476,7 +481,7 @@ export async function autoReceiveShippedOrders(where?: Prisma.OrderWhereInput) {
 export async function updateOrderStatus(
   orderId: string,
   nextStatus: OrderStatus,
-  scope?: { shopId?: string; userId?: string },
+  scope?: { shopId?: string; userId?: string; assignedStaffUserId?: string },
 ) {
   if (!VALID_ORDER_STATUSES.includes(nextStatus as (typeof VALID_ORDER_STATUSES)[number])) {
     throw new Error("INVALID_STATUS");
@@ -488,6 +493,9 @@ export async function updateOrderStatus(
         id: orderId,
         ...(scope?.shopId ? { shopId: scope.shopId } : {}),
         ...(scope?.userId ? { userId: scope.userId } : {}),
+        ...(scope?.assignedStaffUserId
+          ? { assignedStaffUserId: scope.assignedStaffUserId }
+          : {}),
       },
       include: {
         items: true,
@@ -527,6 +535,48 @@ export async function updateOrderStatus(
       data: { status: nextStatus },
       include: STAFF_ORDER_INCLUDE,
     });
+  });
+
+  return serializeOrder(updatedOrder);
+}
+
+export async function assignOrderToStaff(orderId: string, staffUserId: string) {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: {
+      id: true,
+      shopId: true,
+      status: true,
+    },
+  });
+
+  if (!order) {
+    throw new Error("ORDER_NOT_FOUND");
+  }
+
+  const staffProfile = await prisma.staffProfile.findFirst({
+    where: {
+      userId: staffUserId,
+      shopId: order.shopId,
+      isActive: true,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!staffProfile) {
+    throw new Error("STAFF_NOT_IN_SHOP");
+  }
+
+  const updatedOrder = await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      assignedStaffUserId: staffUserId,
+      assignedToStaffAt: new Date(),
+      status: "PROCESSING" as never,
+    } as never,
+    include: STAFF_ORDER_INCLUDE,
   });
 
   return serializeOrder(updatedOrder);

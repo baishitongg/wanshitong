@@ -2,89 +2,106 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { DEFAULT_SHOP_SLUG } from "@/lib/constants";
 
 type SessionUser = {
-    role?: string;
+  role?: string;
 };
 
 type CreateProductBody = {
-    name?: string;
-    description?: string | null;
-    price?: number;
-    stock?: number;
-    categoryId?: string;
-    imageUrl?: string | null;
-    status?: boolean;
+  name?: string;
+  description?: string | null;
+  price?: number;
+  stock?: number;
+  categoryId?: string;
+  imageUrl?: string | null;
+  status?: boolean;
 };
 
-// GET /api/products — fetch all products (staff gets all, public gets active only)
-export async function GET(req: Request) {
-    const session = await auth();
-    const user = session?.user as SessionUser | undefined;
-    const role = user?.role;
-    const isStaff = role === "STAFF" || role === "ADMIN";
+async function getDefaultShopId() {
+  const shop = await prisma.shop.findUnique({
+    where: { slug: DEFAULT_SHOP_SLUG },
+    select: { id: true },
+  });
 
-    const { searchParams } = new URL(req.url);
-    const categoryId = searchParams.get("categoryId");
-
-    const products = await prisma.product.findMany({
-        where: {
-            ...(isStaff ? {} : { status: true }),
-            ...(categoryId ? { categoryId } : {}),
-        },
-        include: { category: true },
-        orderBy: { createdAt: "desc" },
-    });
-
-    const serialized = products.map((p) => ({
-        ...p,
-        price: Number(p.price),
-    }));
-
-    return NextResponse.json(serialized);
+  return shop?.id ?? null;
 }
 
-// POST /api/products — create a new product (staff only)
+export async function GET(req: Request) {
+  const session = await auth();
+  const user = session?.user as SessionUser | undefined;
+  const role = String(user?.role ?? "").toUpperCase();
+  const isStaff = role === "STAFF" || role === "ADMIN";
+
+  const { searchParams } = new URL(req.url);
+  const categoryId = searchParams.get("categoryId");
+  const shopId = await getDefaultShopId();
+
+  const products = await prisma.product.findMany({
+    where: {
+      ...(shopId ? { shopId } : {}),
+      ...(isStaff ? {} : { status: true }),
+      ...(categoryId ? { categoryId } : {}),
+    },
+    include: { category: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const serialized = products.map((product) => ({
+    ...product,
+    price: Number(product.price),
+    costPrice: product.costPrice == null ? null : Number(product.costPrice),
+  }));
+
+  return NextResponse.json(serialized);
+}
+
 export async function POST(req: Request) {
-    const session = await auth();
-    const user = session?.user as SessionUser | undefined;
-    const role = user?.role;
+  const session = await auth();
+  const user = session?.user as SessionUser | undefined;
+  const role = String(user?.role ?? "").toUpperCase();
 
-    if (role !== "STAFF" && role !== "ADMIN") {
-        return NextResponse.json({ error: "无权限" }, { status: 403 });
-    }
+  if (role !== "STAFF" && role !== "ADMIN") {
+    return NextResponse.json({ error: "无权限" }, { status: 403 });
+  }
 
-    const body = (await req.json()) as CreateProductBody;
-    const { name, description, price, stock, categoryId, imageUrl, status } =
-        body;
+  const shopId = await getDefaultShopId();
+  if (!shopId) {
+    return NextResponse.json({ error: "店铺不存在" }, { status: 400 });
+  }
 
-    if (!name || price === undefined || !categoryId) {
-        return NextResponse.json(
-            { error: "商品名称、价格和分类为必填项" },
-            { status: 400 }
-        );
-    }
+  const body = (await req.json()) as CreateProductBody;
+  const { name, description, price, stock, categoryId, imageUrl, status } = body;
 
-    const product = await prisma.product.create({
-        data: {
-            name,
-            description: description || null,
-            price,
-            stock: stock ?? 0,
-            categoryId,
-            imageUrl: imageUrl || null,
-            status: status ?? true,
-        },
-        include: { category: true },
-    });
-
-    revalidatePath("/");
-
+  if (!name || price === undefined || !categoryId) {
     return NextResponse.json(
-        {
-            ...product,
-            price: Number(product.price),
-        },
-        { status: 201 }
+      { error: "商品名称、价格和分类为必填项" },
+      { status: 400 },
     );
+  }
+
+  const product = await prisma.product.create({
+    data: {
+      shopId,
+      name,
+      description: description || null,
+      price,
+      stock: stock ?? 0,
+      categoryId,
+      imageUrl: imageUrl || null,
+      status: status ?? true,
+    },
+    include: { category: true },
+  });
+
+  revalidatePath("/");
+
+  return NextResponse.json(
+    {
+      ...product,
+      price: Number(product.price),
+      costPrice: product.costPrice == null ? null : Number(product.costPrice),
+    },
+    { status: 201 },
+  );
 }

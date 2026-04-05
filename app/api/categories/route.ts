@@ -1,53 +1,77 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_SHOP_SLUG } from "@/lib/constants";
 
 type SessionUser = {
-    id?: string;
-    role?: string;
+  id?: string;
+  role?: string;
 };
 
 type CreateCategoryBody = {
-    name?: string;
+  name?: string;
 };
 
-// GET /api/categories — fetch all categories
-export async function GET() {
-    const categories = await prisma.category.findMany({
-        orderBy: { name: "asc" },
-    });
+async function getDefaultShopId() {
+  const shop = await prisma.shop.findUnique({
+    where: { slug: DEFAULT_SHOP_SLUG },
+    select: { id: true },
+  });
 
-    return NextResponse.json(categories);
+  return shop?.id ?? null;
 }
 
-// POST /api/categories — create a category (staff only)
+export async function GET() {
+  const shopId = await getDefaultShopId();
+
+  const categories = await prisma.category.findMany({
+    where: shopId ? { shopId } : undefined,
+    orderBy: { name: "asc" },
+  });
+
+  return NextResponse.json(categories);
+}
+
 export async function POST(req: Request) {
-    const session = await auth();
-    const user = session?.user as SessionUser | undefined;
-    const role = user?.role;
+  const session = await auth();
+  const user = session?.user as SessionUser | undefined;
+  const role = String(user?.role ?? "").toUpperCase();
 
-    if (role !== "STAFF" && role !== "ADMIN") {
-        return NextResponse.json({ error: "无权限" }, { status: 403 });
-    }
+  if (role !== "STAFF" && role !== "ADMIN") {
+    return NextResponse.json({ error: "无权限" }, { status: 403 });
+  }
 
-    const body = (await req.json()) as CreateCategoryBody;
-    const name = body.name?.trim();
+  const shopId = await getDefaultShopId();
+  if (!shopId) {
+    return NextResponse.json({ error: "店铺不存在" }, { status: 400 });
+  }
 
-    if (!name) {
-        return NextResponse.json({ error: "分类名称不能为空" }, { status: 400 });
-    }
+  const body = (await req.json()) as CreateCategoryBody;
+  const name = body.name?.trim();
 
-    const existing = await prisma.category.findUnique({
-        where: { name },
-    });
+  if (!name) {
+    return NextResponse.json({ error: "分类名称不能为空" }, { status: 400 });
+  }
 
-    if (existing) {
-        return NextResponse.json({ error: "该分类名称已存在" }, { status: 409 });
-    }
+  const existing = await prisma.category.findUnique({
+    where: {
+      shopId_name: {
+        shopId,
+        name,
+      },
+    },
+  });
 
-    const category = await prisma.category.create({
-        data: { name },
-    });
+  if (existing) {
+    return NextResponse.json({ error: "该分类名称已存在" }, { status: 409 });
+  }
 
-    return NextResponse.json(category, { status: 201 });
+  const category = await prisma.category.create({
+    data: {
+      name,
+      shopId,
+    },
+  });
+
+  return NextResponse.json(category, { status: 201 });
 }

@@ -22,6 +22,7 @@ model User {
   addresses               Address[]
   carts                   Cart[]
   orders                  Order[]
+  assignedOrders          Order[]         @relation("AssignedStaffOrders")
   staffProfiles           StaffProfile[]
 }
 
@@ -39,6 +40,7 @@ model Shop {
   whatsappPhone    String?
   telegramUsername String?
   shopType         ShopType       @default(PRODUCT)
+  ownershipType    OwnershipType  @default(MARKETPLACE)
   checkoutMode     CheckoutMode   @default(DELIVERY)
   themePrimary     String?
   themeSecondary   String?
@@ -107,6 +109,7 @@ model Product {
   name        String
   description String?
   price       Decimal     @db.Decimal(10, 2)
+  costPrice   Decimal?    @db.Decimal(10, 2)
   stock       Int         @default(0)
   imageUrl    String?
   status      Boolean     @default(true)
@@ -194,8 +197,11 @@ model Order {
   paymentMethod           PaymentMethod?
   paymentReceiptUrl       String?
   paymentReceiptUploadedAt DateTime?
+  assignedStaffUserId     String?
+  assignedToStaffAt       DateTime?
   shopId                  String
   address                 Address?       @relation(fields: [addressId], references: [id])
+  assignedStaff           User?          @relation("AssignedStaffOrders", fields: [assignedStaffUserId], references: [id])
   shop                    Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
   user                    User?          @relation(fields: [userId], references: [id])
   items                   OrderItem[]
@@ -210,6 +216,7 @@ model OrderItem {
   productId       String
   quantity        Int
   unitPrice       Decimal          @db.Decimal(10, 2)
+  costPriceSnapshot Decimal?       @db.Decimal(10, 2)
   itemType        ItemType?
   fulfillmentType FulfillmentType?
   scheduledDate   DateTime?
@@ -247,6 +254,11 @@ enum ShopType {
   PRODUCT
   SERVICE
   HYBRID
+}
+
+enum OwnershipType {
+  MARKETPLACE
+  SELF_OPERATED
 }
 
 enum CheckoutMode {

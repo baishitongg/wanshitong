@@ -24,7 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import type { Category, Product, ShopType } from "@/types";
+import type { Category, OwnershipType, Product, ShopType } from "@/types";
 import {
   normalizeServiceAttributes,
   type ServiceAvailabilityDay,
@@ -36,6 +36,7 @@ type StaffShopInfo = {
   name: string;
   slug: string;
   shopType: ShopType;
+  ownershipType: OwnershipType;
   checkoutMode: string;
 };
 
@@ -43,6 +44,7 @@ type ProductFormState = {
   name: string;
   description: string;
   price: string;
+  costPrice: string;
   stock: string;
   categoryId: string;
   imageUrl: string;
@@ -68,6 +70,7 @@ const buildEmptyProductForm = (): ProductFormState => ({
   name: "",
   description: "",
   price: "",
+  costPrice: "",
   stock: "",
   categoryId: "",
   imageUrl: "",
@@ -95,6 +98,7 @@ export default function StaffProductsTab() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const isServiceShop = shop?.shopType === "SERVICE";
+  const isSelfOperatedShop = shop?.ownershipType === "SELF_OPERATED";
 
   useEffect(() => {
     const load = async () => {
@@ -240,6 +244,11 @@ export default function StaffProductsTab() {
       return;
     }
 
+    if (isSelfOperatedShop && form.costPrice === "") {
+      toast.error("自营店铺请填写成本价");
+      return;
+    }
+
     if (isServiceShop) {
       const hasAvailability = form.weeklyAvailability.some(
         (day) => day.enabled && day.slots.length > 0,
@@ -261,6 +270,10 @@ export default function StaffProductsTab() {
         name: form.name,
         description: form.description,
         price: parseFloat(form.price),
+        costPrice:
+          isSelfOperatedShop && form.costPrice !== ""
+            ? parseFloat(form.costPrice)
+            : null,
         stock: parseInt(form.stock || "0", 10),
         categoryId: form.categoryId,
         imageUrl: form.imageUrl || null,
@@ -313,6 +326,7 @@ export default function StaffProductsTab() {
       name: product.name,
       description: product.description ?? "",
       price: String(product.price),
+      costPrice: product.costPrice != null ? String(product.costPrice) : "",
       stock: String(product.stock),
       categoryId: product.categoryId,
       imageUrl: product.imageUrl ?? "",
@@ -444,6 +458,9 @@ export default function StaffProductsTab() {
           <span className="ml-2 rounded-full bg-background px-2 py-0.5 text-xs">
             {shop.shopType}
           </span>
+          <span className="ml-2 rounded-full bg-background px-2 py-0.5 text-xs">
+            {shop.ownershipType}
+          </span>
         </div>
       )}
 
@@ -510,7 +527,11 @@ export default function StaffProductsTab() {
               />
             </div>
 
-            <div className={`grid gap-4 ${isServiceShop ? "grid-cols-1 md:grid-cols-3" : "grid-cols-2"}`}>
+            <div
+              className={`grid gap-4 ${
+                isServiceShop || isSelfOperatedShop ? "grid-cols-1 md:grid-cols-3" : "grid-cols-2"
+              }`}
+            >
               <div className="space-y-1.5">
                 <Label>价格（RM）*</Label>
                 <Input
@@ -524,6 +545,22 @@ export default function StaffProductsTab() {
                   placeholder="0.00"
                 />
               </div>
+
+              {isSelfOperatedShop && (
+                <div className="space-y-1.5">
+                  <Label>成本价（RM）</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.costPrice}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, costPrice: event.target.value }))
+                    }
+                    placeholder="0.00"
+                  />
+                </div>
+              )}
 
               {!isServiceShop && (
                 <div className="space-y-1.5">

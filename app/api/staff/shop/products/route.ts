@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getProductsForShop } from "@/lib/commerce";
-import { getStaffShopContext } from "@/lib/shops";
+import { getStaffShopContext, serializeProduct } from "@/lib/shops";
 import { buildServiceAttributes, type ServiceAvailabilityDay } from "@/lib/service-booking";
 import { Prisma } from "@prisma/client";
 
@@ -9,6 +9,7 @@ type Body = {
   name?: string;
   description?: string | null;
   price?: number;
+  costPrice?: number | null;
   stock?: number;
   categoryId?: string;
   imageUrl?: string | null;
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
 
     const shop = await prisma.shop.findUnique({
       where: { id: context.shopId! },
-      select: { id: true, shopType: true },
+      select: { id: true, shopType: true, ownershipType: true },
     });
 
     if (!shop) {
@@ -55,6 +56,10 @@ export async function POST(req: Request) {
     const body = (await req.json()) as Body;
     if (!body.name || body.price === undefined || !body.categoryId) {
       return NextResponse.json({ error: "名称、价格和分类为必填项" }, { status: 400 });
+    }
+
+    if (shop.ownershipType === "SELF_OPERATED" && body.costPrice === undefined) {
+      return NextResponse.json({ error: "请填写成本价" }, { status: 400 });
     }
 
     const category = await prisma.category.findFirst({
@@ -80,6 +85,7 @@ export async function POST(req: Request) {
         name: body.name,
         description: body.description ?? null,
         price: body.price,
+        costPrice: shop.ownershipType === "SELF_OPERATED" ? body.costPrice ?? null : null,
         stock: isServiceShop ? 1 : body.stock ?? 0,
         imageUrl: body.imageUrl ?? null,
         status: body.status ?? true,
@@ -100,7 +106,7 @@ export async function POST(req: Request) {
       include: { category: true },
     });
 
-    return NextResponse.json({ ...product, price: Number(product.price) }, { status: 201 });
+    return NextResponse.json(serializeProduct(product), { status: 201 });
   } catch {
     return NextResponse.json({ error: "无权限" }, { status: 403 });
   }

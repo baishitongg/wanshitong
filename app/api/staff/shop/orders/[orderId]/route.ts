@@ -15,7 +15,7 @@ export async function GET(_req: Request, { params }: Params) {
     const order = await prisma.order.findFirst({
       where: {
         id: orderId,
-        ...(context.isAdmin ? {} : { shopId: context.shopId! }),
+        ...(context.isAdmin ? {} : { assignedStaffUserId: context.user.id! }),
       },
       include: {
         shop: {
@@ -70,7 +70,7 @@ export async function PATCH(req: Request, { params }: Params) {
     }
 
     const order = await updateOrderStatus(orderId, body.status as never, {
-      shopId: context.isAdmin ? undefined : context.shopId!,
+      ...(context.isAdmin ? {} : { assignedStaffUserId: context.user.id! }),
     });
 
     try {

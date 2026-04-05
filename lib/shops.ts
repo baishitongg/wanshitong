@@ -104,11 +104,16 @@ export function buildShopHref(shopSlug: string, suffix = "") {
 export function serializeProduct<
   T extends {
     price: Prisma.Decimal | number;
+    costPrice?: Prisma.Decimal | number | null;
   },
 >(product: T) {
   return {
     ...product,
     price: Number(product.price),
+    costPrice:
+      product.costPrice === undefined || product.costPrice === null
+        ? null
+        : Number(product.costPrice),
   };
 }
 
@@ -117,6 +122,7 @@ export function serializeOrder<
     totalAmount: Prisma.Decimal | number;
     items?: Array<{
       unitPrice: Prisma.Decimal | number;
+      costPriceSnapshot?: Prisma.Decimal | number | null;
     }>;
   },
 >(order: T) {
@@ -126,11 +132,22 @@ export function serializeOrder<
     items: order.items?.map((item) => ({
       ...item,
       unitPrice: Number(item.unitPrice),
+      costPriceSnapshot:
+        item.costPriceSnapshot === undefined || item.costPriceSnapshot === null
+          ? null
+          : Number(item.costPriceSnapshot),
     })),
   };
 }
 
 export const STAFF_ORDER_INCLUDE = {
+  assignedStaff: {
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+    },
+  },
   shop: {
     select: {
       id: true,

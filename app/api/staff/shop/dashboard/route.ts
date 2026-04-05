@@ -14,6 +14,7 @@ export async function GET() {
             name: true,
             slug: true,
             shopType: true,
+            ownershipType: true,
             checkoutMode: true,
           },
         })

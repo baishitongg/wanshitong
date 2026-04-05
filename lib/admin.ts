@@ -38,6 +38,7 @@ type CreateShopInput = {
   whatsappPhone?: string | null;
   telegramUsername?: string | null;
   shopType?: ShopType;
+  ownershipType?: "MARKETPLACE" | "SELF_OPERATED";
   checkoutMode?: CheckoutMode;
   themePrimary?: string | null;
   themeSecondary?: string | null;
@@ -95,6 +96,7 @@ export async function createShop(input: CreateShopInput) {
       telegramUsername:
         input.telegramUsername?.trim().replace(/^@+/, "") || null,
       shopType: input.shopType ?? "PRODUCT",
+      ownershipType: input.ownershipType ?? "MARKETPLACE",
       checkoutMode: input.checkoutMode ?? "DELIVERY",
       themePrimary: input.themePrimary?.trim() || null,
       themeSecondary: input.themeSecondary?.trim() || null,
