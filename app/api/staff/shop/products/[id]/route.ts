@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getStaffShopContext, serializeProduct } from "@/lib/shops";
-import { buildServiceAttributes, type ServiceAvailabilityDay } from "@/lib/service-booking";
+import {
+  buildServiceAttributes,
+  type ServiceAvailabilityDay,
+  type ServiceMediaItem,
+  type ServicePackageOption,
+} from "@/lib/service-booking";
 import { Prisma } from "@prisma/client";
 
 type Body = {
@@ -15,6 +20,8 @@ type Body = {
   status?: boolean;
   attributes?: Record<string, unknown> | null;
   galleryUrls?: string[];
+  galleryMedia?: ServiceMediaItem[];
+  packageOptions?: ServicePackageOption[];
   weeklyAvailability?: ServiceAvailabilityDay[];
   durationMinutes?: number;
   minAdvanceHours?: number;
@@ -67,8 +74,12 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const isServiceShop = shop.shopType === "SERVICE";
     const serviceAttributes = isServiceShop
-      ? buildServiceAttributes({
+        ? buildServiceAttributes({
+          galleryMedia:
+            body.galleryMedia ??
+            (body.galleryUrls ?? []).map((url) => ({ url, type: "image" as const })),
           galleryUrls: body.galleryUrls ?? [],
+          packageOptions: body.packageOptions ?? [],
           weeklyAvailability: body.weeklyAvailability ?? [],
         })
       : undefined;
@@ -91,8 +102,8 @@ export async function PATCH(req: Request, { params }: Params) {
             requiresScheduling: true,
             stock: 1,
             durationMinutes: body.durationMinutes ?? existing.durationMinutes ?? 60,
-            minAdvanceHours: body.minAdvanceHours ?? existing.minAdvanceHours ?? 0,
-            maxAdvanceDays: body.maxAdvanceDays ?? existing.maxAdvanceDays ?? 14,
+            minAdvanceHours: 0,
+            maxAdvanceDays: 14,
             requiresAddress: body.requiresAddress ?? existing.requiresAddress,
             requiresContact: true,
             attributes: serviceAttributes as Prisma.InputJsonValue,

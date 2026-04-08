@@ -18,8 +18,22 @@ export type ServiceAvailabilityDay = {
   slots: ServiceTimeRange[];
 };
 
+export type ServiceMediaType = "image" | "video";
+
+export type ServiceMediaItem = {
+  url: string;
+  type: ServiceMediaType;
+};
+
+export type ServicePackageOption = {
+  price: number;
+  durationMinutes: number;
+};
+
 export type ServiceAttributes = {
+  galleryMedia: ServiceMediaItem[];
   galleryUrls: string[];
+  packageOptions: ServicePackageOption[];
   weeklyAvailability: ServiceAvailabilityDay[];
 };
 
@@ -85,6 +99,27 @@ function buildDefaultAvailability(): ServiceAvailabilityDay[] {
   }));
 }
 
+function normalizeServicePackageOption(value: unknown) {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const rawPrice = typeof value.price === "number" ? value.price : Number(value.price);
+  const rawDuration =
+    typeof value.durationMinutes === "number"
+      ? value.durationMinutes
+      : Number(value.durationMinutes);
+
+  if (!Number.isFinite(rawPrice) || rawPrice < 0 || !Number.isFinite(rawDuration) || rawDuration <= 0) {
+    return null;
+  }
+
+  return {
+    price: Number(rawPrice.toFixed(2)),
+    durationMinutes: Math.round(rawDuration),
+  } satisfies ServicePackageOption;
+}
+
 export function isServiceProduct(product: {
   itemType?: string | null;
   requiresScheduling?: boolean | null;
@@ -95,6 +130,11 @@ export function isServiceProduct(product: {
     product.requiresScheduling === true ||
     product.fulfillmentType === "BOOKING"
   );
+}
+
+export function inferServiceMediaType(url: string) {
+  const normalizedUrl = url.split("?")[0]?.toLowerCase() ?? "";
+  return /\.(mp4|webm|mov|m4v|ogv|ogg)$/i.test(normalizedUrl) ? "video" : "image";
 }
 
 export function normalizeServiceAttributes(attributes: unknown): ServiceAttributes {
@@ -108,6 +148,39 @@ export function normalizeServiceAttributes(attributes: unknown): ServiceAttribut
   const galleryUrls = rawGallery.filter(
     (value): value is string => typeof value === "string" && value.trim().length > 0,
   );
+  const rawMedia = Array.isArray(safeAttributes?.galleryMedia) ? safeAttributes.galleryMedia : [];
+  const parsedMedia = rawMedia
+    .map((entry) => {
+      if (typeof entry !== "object" || entry === null) {
+        return null;
+      }
+
+      const url = typeof entry.url === "string" ? entry.url.trim() : "";
+      if (!url) {
+        return null;
+      }
+
+      return {
+        url,
+        type: entry.type === "video" ? "video" : "image",
+      } satisfies ServiceMediaItem;
+    })
+    .filter((entry): entry is ServiceMediaItem => entry !== null);
+
+  const existingMediaUrls = new Set(parsedMedia.map((entry) => entry.url));
+  const legacyImageMedia = galleryUrls
+    .filter((url) => !existingMediaUrls.has(url))
+    .map((url) => ({
+      url,
+      type: "image" as const,
+    }));
+  const galleryMedia = [...parsedMedia, ...legacyImageMedia];
+  const rawPackageOptions = Array.isArray(safeAttributes?.packageOptions)
+    ? safeAttributes.packageOptions
+    : [];
+  const packageOptions = rawPackageOptions
+    .map((entry) => normalizeServicePackageOption(entry))
+    .filter((entry): entry is ServicePackageOption => entry !== null);
 
   const defaultAvailability = buildDefaultAvailability();
   const rawAvailability = Array.isArray(safeAttributes?.weeklyAvailability)
@@ -151,14 +224,32 @@ export function normalizeServiceAttributes(attributes: unknown): ServiceAttribut
   });
 
   return {
-    galleryUrls,
+    galleryMedia,
+    galleryUrls: galleryMedia
+      .filter((item) => item.type === "image")
+      .map((item) => item.url),
+    packageOptions,
     weeklyAvailability: mappedAvailability,
   };
 }
 
 export function buildServiceAttributes(input: ServiceAttributes) {
+  const galleryMedia = input.galleryMedia
+    .map((item) => ({
+      url: item.url.trim(),
+      type: item.type,
+    }))
+    .filter((item) => item.url.length > 0);
+  const packageOptions = input.packageOptions
+    .map((item) => normalizeServicePackageOption(item))
+    .filter((item): item is ServicePackageOption => item !== null);
+
   return {
-    galleryUrls: input.galleryUrls.filter((value) => value.trim().length > 0),
+    galleryMedia,
+    galleryUrls: galleryMedia
+      .filter((item) => item.type === "image")
+      .map((item) => item.url),
+    packageOptions,
     weeklyAvailability: input.weeklyAvailability.map((day) => ({
       day: day.day,
       enabled: day.enabled && day.slots.length > 0,
@@ -189,6 +280,21 @@ export function formatServiceSlotLabel(start: Date, end: Date) {
   })}`;
 
   return `${weekday} ${dateLabel} ${timeLabel}`;
+}
+
+export function formatServiceDuration(durationMinutes: number) {
+  if (durationMinutes < 60) {
+    return `${durationMinutes} 分钟`;
+  }
+
+  const hours = Math.floor(durationMinutes / 60);
+  const minutes = durationMinutes % 60;
+
+  if (minutes === 0) {
+    return `${hours} 小时`;
+  }
+
+  return `${hours} 小时 ${minutes} 分钟`;
 }
 
 export function buildUpcomingServiceSlots(input: {

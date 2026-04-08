@@ -30,16 +30,16 @@ function getStepsByShopType(shopType: ShopType): StepItem[] {
       {
         icon: CalendarClock,
         step: "步骤二",
-        title: "选择预约日期和时段",
-        description: "先从日期中选择想预约的一天，再挑选当天仍可预约的具体时间。",
-        highlights: ["预约日期", "预约时段"],
+        title: "点击预约并跳转 Telegram",
+        description: "进入服务详情页后，直接点击“预约”按钮，系统会带您跳转到店铺 Telegram。",
+        highlights: ["预约按钮", "Telegram"],
       },
       {
         icon: Send,
         step: "步骤三",
-        title: "提交预约并等待店铺联系",
-        description: "确认预约内容后提交订单，店铺会通过 WhatsApp 或 Telegram 尽快与您联系。",
-        highlights: ["提交预约", "WhatsApp", "Telegram"],
+        title: "告诉客服您来自万事通",
+        description: "在 Telegram 里告诉负责人您是从万事通过来的，并说明想预约的服务，负责人会继续协助您安排。",
+        highlights: ["来自万事通", "服务名称", "客服协助"],
       },
     ];
   }
@@ -55,26 +55,26 @@ function getStepsByShopType(shopType: ShopType): StepItem[] {
     {
       icon: Send,
       step: "步骤二",
-      title: "勾选本次要结算的商品",
-      description: "打开购物车后，勾选这次要买的商品，然后点击去结算。",
-      highlights: ["购物车", "去结算"],
+      title: "确认商品后去付款",
+      description: "打开购物车后，确认这次要买的商品，然后点击去付款进入付款页面。",
+      highlights: ["购物车", "去付款"],
     },
     {
       icon: MapPin,
       step: "步骤三",
-      title: "选择地址和首选沟通方式",
-      description: "进入结算页后，选择收货地址，再设置手机号或 Telegram 作为首选联系方式。",
-      highlights: ["收货地址", "手机号", "Telegram"],
+      title: "上传付款凭证并等待核实",
+      description: "进入付款页后，选择付款方式并上传付款凭证；提交后店铺会核实订单，再安排发货或联系您。",
+      highlights: ["付款方式", "付款凭证", "等待核实"],
     },
   ];
 }
 
 function getIntroByShopType(shopType: ShopType) {
   if (shopType === "SERVICE") {
-    return "第一次预约也不用担心。跟着下面 3 个步骤操作，就可以顺利完成预约。";
+    return "第一次预约也不用担心。现在无需选择日期和时段，直接点“预约”进入 Telegram，告诉负责人您来自万事通即可。";
   }
 
-  return "第一次使用也不用担心。跟着下面 3 个步骤操作，就可以顺利完成下单。";
+  return "第一次使用也不用担心。跟着下面 3 个步骤操作，就可以顺利完成下单与付款。";
 }
 
 export default async function ShopHowToUsePage({ params }: Props) {

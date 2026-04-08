@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Loader2, Package, Plus, Trash2, Upload } from "lucide-react";
 import ProductCard from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
@@ -26,9 +27,10 @@ import {
 import { toast } from "sonner";
 import type { Category, OwnershipType, Product, ShopType } from "@/types";
 import {
+  formatServiceDuration,
   normalizeServiceAttributes,
   type ServiceAvailabilityDay,
-  type ServiceWeekday,
+  type ServiceMediaItem,
 } from "@/lib/service-booking";
 
 type StaffShopInfo = {
@@ -48,23 +50,23 @@ type ProductFormState = {
   stock: string;
   categoryId: string;
   imageUrl: string;
-  galleryUrls: string[];
-  durationMinutes: string;
-  minAdvanceHours: string;
-  maxAdvanceDays: string;
+  galleryMedia: ServiceMediaItem[];
+  packageOptions: Array<{
+    id: string;
+    price: string;
+    durationMinutes: string;
+  }>;
   requiresAddress: boolean;
   weeklyAvailability: ServiceAvailabilityDay[];
 };
 
-const WEEKDAY_LABELS: Record<ServiceWeekday, string> = {
-  MONDAY: "星期一",
-  TUESDAY: "星期二",
-  WEDNESDAY: "星期三",
-  THURSDAY: "星期四",
-  FRIDAY: "星期五",
-  SATURDAY: "星期六",
-  SUNDAY: "星期日",
-};
+function createPackageOption(price = "", durationMinutes = "60") {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    price,
+    durationMinutes,
+  };
+}
 
 const buildEmptyProductForm = (): ProductFormState => ({
   name: "",
@@ -74,10 +76,8 @@ const buildEmptyProductForm = (): ProductFormState => ({
   stock: "",
   categoryId: "",
   imageUrl: "",
-  galleryUrls: [],
-  durationMinutes: "60",
-  minAdvanceHours: "0",
-  maxAdvanceDays: "14",
+  galleryMedia: [],
+  packageOptions: [createPackageOption()],
   requiresAddress: false,
   weeklyAvailability: normalizeServiceAttributes(null).weeklyAvailability,
 });
@@ -144,6 +144,18 @@ export default function StaffProductsTab() {
     }
 
     try {
+      const isVideo = file.type.startsWith("video/");
+      const allowed = type === "cover" ? file.type.startsWith("image/") : isVideo || file.type.startsWith("image/");
+      const maxSizeBytes = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+
+      if (!allowed) {
+        throw new Error(type === "cover" ? "封面仅支持图片文件" : "服务图库仅支持图片或视频文件");
+      }
+
+      if (file.size > maxSizeBytes) {
+        throw new Error(isVideo ? "视频请控制在 50MB 以内" : "图片请控制在 10MB 以内");
+      }
+
       const urlRes = await fetch("/api/upload-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -170,10 +182,12 @@ export default function StaffProductsTab() {
       });
 
       if (!uploadRes.ok) {
-        throw new Error("图片上传失败");
+        throw new Error(isVideo ? "视频上传失败" : "图片上传失败");
       }
 
-      toast.success(type === "cover" ? "封面图片上传成功" : "服务图片上传成功");
+      toast.success(
+        type === "cover" ? "封面图片上传成功" : isVideo ? "服务视频上传成功" : "服务图片上传成功",
+      );
       return urlData.publicUrl;
     } catch (error) {
       const message = error instanceof Error ? error.message : "上传失败";
@@ -199,7 +213,13 @@ export default function StaffProductsTab() {
     if (!publicUrl) return;
     setForm((current) => ({
       ...current,
-      galleryUrls: [...current.galleryUrls, publicUrl],
+      galleryMedia: [
+        ...current.galleryMedia,
+        {
+          url: publicUrl,
+          type: file.type.startsWith("video/") ? "video" : "image",
+        },
+      ],
     }));
   };
 
@@ -239,7 +259,7 @@ export default function StaffProductsTab() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.price || !form.categoryId) {
+    if (!form.name || !form.categoryId) {
       toast.error("名称、价格和分类为必填项");
       return;
     }
@@ -249,14 +269,24 @@ export default function StaffProductsTab() {
       return;
     }
 
-    if (isServiceShop) {
-      const hasAvailability = form.weeklyAvailability.some(
-        (day) => day.enabled && day.slots.length > 0,
-      );
-      if (!hasAvailability) {
-        toast.error("请至少设置一个可预约时段");
-        return;
-      }
+    const normalizedPackageOptions = isServiceShop
+      ? form.packageOptions
+          .map((item) => ({
+            price: Number.parseFloat(item.price),
+            durationMinutes: Number.parseInt(item.durationMinutes || "0", 10),
+          }))
+          .filter(
+            (item) =>
+              Number.isFinite(item.price) &&
+              item.price >= 0 &&
+              Number.isFinite(item.durationMinutes) &&
+              item.durationMinutes > 0,
+          )
+      : [];
+
+    if (isServiceShop && normalizedPackageOptions.length === 0) {
+      toast.error("请至少添加一个价格和时长");
+      return;
     }
 
     setSaving(true);
@@ -269,7 +299,9 @@ export default function StaffProductsTab() {
       const payload = {
         name: form.name,
         description: form.description,
-        price: parseFloat(form.price),
+        price: isServiceShop
+          ? normalizedPackageOptions[0]?.price ?? 0
+          : parseFloat(form.price),
         costPrice:
           isSelfOperatedShop && form.costPrice !== ""
             ? parseFloat(form.costPrice)
@@ -277,10 +309,11 @@ export default function StaffProductsTab() {
         stock: parseInt(form.stock || "0", 10),
         categoryId: form.categoryId,
         imageUrl: form.imageUrl || null,
-        galleryUrls: form.galleryUrls,
-        durationMinutes: parseInt(form.durationMinutes || "60", 10),
-        minAdvanceHours: parseInt(form.minAdvanceHours || "0", 10),
-        maxAdvanceDays: parseInt(form.maxAdvanceDays || "14", 10),
+        galleryMedia: form.galleryMedia,
+        packageOptions: normalizedPackageOptions,
+        durationMinutes: isServiceShop
+          ? normalizedPackageOptions[0]?.durationMinutes ?? 60
+          : null,
         requiresAddress: form.requiresAddress,
         weeklyAvailability: form.weeklyAvailability,
       };
@@ -330,10 +363,17 @@ export default function StaffProductsTab() {
       stock: String(product.stock),
       categoryId: product.categoryId,
       imageUrl: product.imageUrl ?? "",
-      galleryUrls: serviceAttributes.galleryUrls,
-      durationMinutes: String(product.durationMinutes ?? 60),
-      minAdvanceHours: String(product.minAdvanceHours ?? 0),
-      maxAdvanceDays: String(product.maxAdvanceDays ?? 14),
+      galleryMedia: serviceAttributes.galleryMedia,
+      packageOptions:
+        serviceAttributes.packageOptions.length > 0
+          ? serviceAttributes.packageOptions.map((item) => ({
+              id: createPackageOption().id,
+              price: String(item.price),
+              durationMinutes: String(item.durationMinutes),
+            }))
+          : [
+              createPackageOption(String(product.price), String(product.durationMinutes ?? 60)),
+            ],
       requiresAddress: product.requiresAddress,
       weeklyAvailability: serviceAttributes.weeklyAvailability,
     });
@@ -341,55 +381,40 @@ export default function StaffProductsTab() {
     setDialogOpen(true);
   };
 
-  const updateAvailabilityDay = (
-    day: ServiceWeekday,
-    updater: (current: ServiceAvailabilityDay) => ServiceAvailabilityDay,
-  ) => {
+  const removeGalleryItem = (url: string) => {
     setForm((current) => ({
       ...current,
-      weeklyAvailability: current.weeklyAvailability.map((entry) =>
-        entry.day === day ? updater(entry) : entry,
-      ),
+      galleryMedia: current.galleryMedia.filter((entry) => entry.url !== url),
     }));
   };
 
-  const addTimeSlot = (day: ServiceWeekday) => {
-    updateAvailabilityDay(day, (current) => ({
-      ...current,
-      enabled: true,
-      slots: [...current.slots, { start: "10:00", end: "12:00" }],
-    }));
-  };
-
-  const updateTimeSlot = (
-    day: ServiceWeekday,
+  const updatePackageOption = (
     index: number,
-    field: "start" | "end",
+    field: "price" | "durationMinutes",
     value: string,
   ) => {
-    updateAvailabilityDay(day, (current) => ({
+    setForm((current) => ({
       ...current,
-      slots: current.slots.map((slot, slotIndex) =>
-        slotIndex === index ? { ...slot, [field]: value } : slot,
+      packageOptions: current.packageOptions.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item,
       ),
     }));
   };
 
-  const removeTimeSlot = (day: ServiceWeekday, index: number) => {
-    updateAvailabilityDay(day, (current) => {
-      const nextSlots = current.slots.filter((_, slotIndex) => slotIndex !== index);
-      return {
-        ...current,
-        enabled: nextSlots.length > 0 ? current.enabled : false,
-        slots: nextSlots,
-      };
-    });
-  };
-
-  const removeGalleryImage = (url: string) => {
+  const addPackageOption = () => {
     setForm((current) => ({
       ...current,
-      galleryUrls: current.galleryUrls.filter((entry) => entry !== url),
+      packageOptions: [...current.packageOptions, createPackageOption()],
+    }));
+  };
+
+  const removePackageOption = (index: number) => {
+    setForm((current) => ({
+      ...current,
+      packageOptions:
+        current.packageOptions.length === 1
+          ? [createPackageOption()]
+          : current.packageOptions.filter((_, itemIndex) => itemIndex !== index),
     }));
   };
 
@@ -427,15 +452,13 @@ export default function StaffProductsTab() {
           <Card>
             <CardContent className="pt-6">
               <p className="text-sm text-muted-foreground">
-                {isServiceShop ? "需补时段" : "已售罄"}
+                {isServiceShop ? "已添加媒体" : "已售罄"}
               </p>
               <p className="mt-1 text-3xl font-bold text-destructive">
                 {isServiceShop
                   ? products.filter((product) => {
                       const attributes = normalizeServiceAttributes(product.attributes);
-                      return !attributes.weeklyAvailability.some(
-                        (day) => day.enabled && day.slots.length > 0,
-                      );
+                      return Boolean(product.imageUrl) || attributes.galleryMedia.length > 0;
                     }).length
                   : products.filter((product) => product.stock === 0).length}
               </p>
@@ -529,22 +552,24 @@ export default function StaffProductsTab() {
 
             <div
               className={`grid gap-4 ${
-                isServiceShop || isSelfOperatedShop ? "grid-cols-1 md:grid-cols-3" : "grid-cols-2"
+                isServiceShop || isSelfOperatedShop ? "grid-cols-1 md:grid-cols-2" : "grid-cols-2"
               }`}
             >
-              <div className="space-y-1.5">
-                <Label>价格（RM）*</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={form.price}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, price: event.target.value }))
-                  }
-                  placeholder="0.00"
-                />
-              </div>
+              {!isServiceShop && (
+                <div className="space-y-1.5">
+                  <Label>价格（RM）*</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.price}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, price: event.target.value }))
+                    }
+                    placeholder="0.00"
+                  />
+                </div>
+              )}
 
               {isSelfOperatedShop && (
                 <div className="space-y-1.5">
@@ -578,53 +603,71 @@ export default function StaffProductsTab() {
               )}
 
               {isServiceShop && (
-                <>
-                  <div className="space-y-1.5">
-                    <Label>单次时长（分钟）</Label>
-                    <Input
-                      type="number"
-                      min="15"
-                      step="15"
-                      value={form.durationMinutes}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          durationMinutes: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>最早提前预约（小时）</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={form.minAdvanceHours}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          minAdvanceHours: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>最远可预约（天）</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={form.maxAdvanceDays}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          maxAdvanceDays: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </>
+                <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                  服务价格将以下方“价格与时长”方案为准。
+                </div>
               )}
             </div>
+
+            {isServiceShop && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>价格与时长</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addPackageOption}>
+                    <Plus className="mr-1 h-4 w-4" />
+                    添加方案
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {form.packageOptions.map((item, index) => (
+                    <div key={item.id} className="rounded-xl border p-4">
+                      <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+                        <div className="space-y-1.5">
+                          <Label>价格（RM）*</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={item.price}
+                            onChange={(event) => updatePackageOption(index, "price", event.target.value)}
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>单次时长（分钟）*</Label>
+                          <Input
+                            type="number"
+                            min="15"
+                            step="15"
+                            value={item.durationMinutes}
+                            onChange={(event) =>
+                              updatePackageOption(index, "durationMinutes", event.target.value)
+                            }
+                            placeholder="60"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removePackageOption(index)}
+                        >
+                          <Trash2 className="mr-1 h-3.5 w-3.5" />
+                          删除
+                        </Button>
+                      </div>
+
+                      {item.price && item.durationMinutes && (
+                        <div className="mt-3 text-sm text-muted-foreground">
+                          预览：RM{item.price} / {formatServiceDuration(Number(item.durationMinutes))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -697,8 +740,8 @@ export default function StaffProductsTab() {
                     placeholder="或直接粘贴图片链接"
                     className="text-xs"
                   />
-                  <div className="h-24 w-24 overflow-hidden rounded-xl border bg-muted">
-                    <img src={form.imageUrl} alt="封面预览" className="h-full w-full object-cover" />
+                  <div className="relative h-24 w-24 overflow-hidden rounded-xl border bg-muted">
+                    <Image src={form.imageUrl} alt="封面预览" fill className="object-cover" />
                   </div>
                 </div>
               )}
@@ -707,11 +750,29 @@ export default function StaffProductsTab() {
             {isServiceShop && (
               <>
                 <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={form.requiresAddress}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          requiresAddress: event.target.checked,
+                        }))
+                      }
+                    />
+                    该服务需要客户提供地址
+                  </label>
+
+                  <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
+                    服务可预约时段先隐藏，后面需要时再开启。
+                  </div>
+
                   <div className="flex items-center justify-between">
-                    <Label>服务图片（可多张）</Label>
+                    <Label>服务媒体（图片/视频）</Label>
                     <Input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/*"
                       className="hidden"
                       id="service-gallery-upload"
                       onChange={(event) => {
@@ -728,128 +789,50 @@ export default function StaffProductsTab() {
                       ) : (
                         <Upload className="h-4 w-4" />
                       )}
-                      {galleryUploading ? "上传中..." : "添加图片"}
+                      {galleryUploading ? "上传中..." : "添加媒体"}
                     </Label>
                   </div>
 
-                  {form.galleryUrls.length === 0 ? (
+                  {form.galleryMedia.length === 0 ? (
                     <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
-                      还没有额外服务图片
+                      还没有额外服务图片或视频
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      {form.galleryUrls.map((url) => (
-                        <div key={url} className="space-y-2">
-                          <div className="h-24 overflow-hidden rounded-xl border bg-muted">
-                            <img src={url} alt="服务图片" className="h-full w-full object-cover" />
+                      {form.galleryMedia.map((item) => (
+                        <div key={item.url} className="space-y-2">
+                          <div className="relative h-24 overflow-hidden rounded-xl border bg-muted">
+                            {item.type === "video" ? (
+                              <video
+                                src={item.url}
+                                className="h-full w-full object-cover"
+                                muted
+                                playsInline
+                                preload="metadata"
+                              />
+                            ) : (
+                              <Image src={item.url} alt="服务图片" fill className="object-cover" />
+                            )}
                           </div>
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             className="w-full"
-                            onClick={() => removeGalleryImage(url)}
+                            onClick={() => removeGalleryItem(item.url)}
                           >
                             <Trash2 className="mr-1 h-3.5 w-3.5" />
                             删除
                           </Button>
+                          <div className="text-center text-xs text-muted-foreground">
+                            {item.type === "video" ? "视频" : "图片"}
+                          </div>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label>每周可预约时段</Label>
-                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        checked={form.requiresAddress}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            requiresAddress: event.target.checked,
-                          }))
-                        }
-                      />
-                      该服务需要客户提供地址
-                    </label>
-                  </div>
-
-                  <div className="space-y-3">
-                    {form.weeklyAvailability.map((day) => (
-                      <div key={day.day} className="rounded-xl border p-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <label className="flex items-center gap-2 text-sm font-medium">
-                            <input
-                              type="checkbox"
-                              checked={day.enabled}
-                              onChange={(event) =>
-                                updateAvailabilityDay(day.day, (current) => ({
-                                  ...current,
-                                  enabled: event.target.checked,
-                                  slots:
-                                    event.target.checked && current.slots.length === 0
-                                      ? [{ start: "10:00", end: "12:00" }]
-                                      : current.slots,
-                                }))
-                              }
-                            />
-                            {WEEKDAY_LABELS[day.day]}
-                          </label>
-
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={!day.enabled}
-                            onClick={() => addTimeSlot(day.day)}
-                          >
-                            <Plus className="mr-1 h-4 w-4" />
-                            添加时段
-                          </Button>
-                        </div>
-
-                        {!day.enabled ? (
-                          <p className="mt-3 text-sm text-muted-foreground">当天不开放预约</p>
-                        ) : (
-                          <div className="mt-3 space-y-2">
-                            {day.slots.map((slot, index) => (
-                              <div
-                                key={`${day.day}-${index}`}
-                                className="grid grid-cols-[1fr_1fr_auto] items-center gap-2"
-                              >
-                                <Input
-                                  type="time"
-                                  value={slot.start}
-                                  onChange={(event) =>
-                                    updateTimeSlot(day.day, index, "start", event.target.value)
-                                  }
-                                />
-                                <Input
-                                  type="time"
-                                  value={slot.end}
-                                  onChange={(event) =>
-                                    updateTimeSlot(day.day, index, "end", event.target.value)
-                                  }
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeTimeSlot(day.day, index)}
-                                >
-                                  <Trash2 className="h-4 w-4 text-muted-foreground" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </>
             )}
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -8,8 +8,9 @@ import { Check, MessageCircle, Minus, Package, Plus, ShoppingCart, Tag } from "l
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useShopCart } from "@/lib/store/cartStore";
-import { normalizeServiceAttributes } from "@/lib/service-booking";
+import { formatServiceDuration, normalizeServiceAttributes } from "@/lib/service-booking";
 import type { ShopTheme } from "@/lib/shopTheme";
 import type { Product } from "@/types";
 
@@ -47,20 +48,30 @@ export default function ProductDetailClient({
     product.itemType === "SERVICE" ||
     product.requiresScheduling ||
     product.fulfillmentType === "BOOKING";
-  const gallery = normalizeServiceAttributes(product.attributes).galleryUrls;
+  const serviceAttributes = normalizeServiceAttributes(product.attributes);
+  const galleryMedia = serviceAttributes.galleryMedia;
+  const packageOptions =
+    serviceAttributes.packageOptions.length > 0
+      ? serviceAttributes.packageOptions
+      : [{ price: product.price, durationMinutes: product.durationMinutes ?? 60 }];
 
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
-  const [selectedGalleryImage, setSelectedGalleryImage] = useState<string | null>(null);
+  const [selectedGalleryMediaUrl, setSelectedGalleryMediaUrl] = useState<string | null>(null);
+  const [fullscreenImageUrl, setFullscreenImageUrl] = useState<string | null>(null);
 
   const outOfStock = !isService && product.stock === 0;
   const maxQty = Math.min(product.stock, 99);
-  const selectedMainImage = selectedGalleryImage ?? product.imageUrl ?? null;
+  const selectedGalleryMedia =
+    galleryMedia.find((item) => item.url === selectedGalleryMediaUrl) ?? null;
+  const selectedMainMedia = selectedGalleryMedia ?? (!product.imageUrl ? galleryMedia[0] ?? null : null);
+  const selectedMainImageUrl =
+    selectedMainMedia?.type === "image"
+      ? selectedMainMedia.url
+      : selectedMainMedia?.type === "video"
+        ? null
+        : product.imageUrl ?? null;
   const telegramHref = supportTelegram ? buildTelegramLink(supportTelegram) : null;
-
-  useEffect(() => {
-    setSelectedGalleryImage(null);
-  }, [product.id]);
 
   const stockLevel = outOfStock
     ? "out"
@@ -113,14 +124,42 @@ export default function ProductDetailClient({
 
   if (isService) {
     return (
-      <div className="space-y-8">
-        <section className="overflow-hidden rounded-3xl border bg-white shadow-sm">
+      <>
+        <div className="space-y-8">
+          <section className="overflow-hidden rounded-3xl border bg-white shadow-sm">
           <div className="grid gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
             <div className="space-y-4 border-b p-5 lg:border-b-0 lg:border-r lg:p-6">
-              <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-2xl border bg-white p-5">
-                {selectedMainImage ? (
+              <button
+                type="button"
+                className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-2xl border bg-white p-5 text-left"
+                onClick={() => {
+                  if (selectedMainImageUrl) {
+                    setFullscreenImageUrl(selectedMainImageUrl);
+                  }
+                }}
+              >
+                {selectedMainMedia ? (
+                  selectedMainMedia.type === "video" ? (
+                    <video
+                      src={selectedMainMedia.url}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="h-full w-full rounded-2xl object-contain"
+                    />
+                  ) : (
+                    <Image
+                      src={selectedMainMedia.url}
+                      alt={product.name}
+                      fill
+                      className="object-contain p-5"
+                      sizes="(max-width: 1024px) 100vw, 55vw"
+                      priority
+                    />
+                  )
+                ) : product.imageUrl ? (
                   <Image
-                    src={selectedMainImage}
+                    src={product.imageUrl}
                     alt={product.name}
                     fill
                     className="object-contain p-5"
@@ -130,19 +169,19 @@ export default function ProductDetailClient({
                 ) : (
                   <EmptyImageState />
                 )}
-              </div>
+              </button>
 
-              {gallery.length > 0 && (
+              {galleryMedia.length > 0 && (
                 <div className="space-y-2">
-                  <div className="text-sm text-muted-foreground">服务图库</div>
+                  <div className="text-sm text-muted-foreground">服务媒体</div>
                   <div className="flex gap-2 overflow-x-auto pb-1">
                     {product.imageUrl && (
                       <button
                         type="button"
-                        onClick={() => setSelectedGalleryImage(null)}
+                        onClick={() => setSelectedGalleryMediaUrl(null)}
                         className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border bg-white transition-all sm:h-20 sm:w-20"
                         style={
-                          !selectedGalleryImage
+                          !selectedGalleryMediaUrl
                             ? ({
                                 borderColor: theme?.secondary ?? "#b91c1c",
                                 boxShadow: `0 0 0 2px ${theme?.secondary ?? "#b91c1c"}22`,
@@ -162,13 +201,15 @@ export default function ProductDetailClient({
                       </button>
                     )}
 
-                    {gallery.map((image, index) => {
-                      const selected = selectedMainImage === image;
+                    {galleryMedia.map((item, index) => {
+                      const selected =
+                        selectedGalleryMediaUrl === item.url ||
+                        (!selectedGalleryMediaUrl && !product.imageUrl && galleryMedia[0]?.url === item.url);
                       return (
                         <button
-                          key={`${image}-${index}`}
+                          key={`${item.url}-${index}`}
                           type="button"
-                          onClick={() => setSelectedGalleryImage(image)}
+                          onClick={() => setSelectedGalleryMediaUrl(item.url)}
                           className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border bg-white transition-all sm:h-20 sm:w-20"
                           style={
                             selected
@@ -179,12 +220,25 @@ export default function ProductDetailClient({
                               : undefined
                           }
                         >
-                          <Image
-                            src={image}
-                            alt={`${product.name}-${index + 1}`}
-                            fill
-                            className="object-cover"
-                          />
+                          {item.type === "video" ? (
+                            <video
+                              src={item.url}
+                              className="h-full w-full object-cover"
+                              muted
+                              playsInline
+                              preload="metadata"
+                            />
+                          ) : (
+                            <Image
+                              src={item.url}
+                              alt={`${product.name}-${index + 1}`}
+                              fill
+                              className="object-cover"
+                            />
+                          )}
+                          <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-[10px] text-white">
+                            {item.type === "video" ? "视频" : "图片"}
+                          </span>
                         </button>
                       );
                     })}
@@ -206,9 +260,31 @@ export default function ProductDetailClient({
                 <div className="text-3xl font-bold" style={{ color: theme?.secondary ?? "#dc2626" }}>
                   RM{Number(product.price).toFixed(2)}
                 </div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  {formatServiceDuration(product.durationMinutes ?? packageOptions[0]?.durationMinutes ?? 60)}
+                </div>
                 <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
                   服务预约
                 </span>
+              </div>
+
+              <div className="rounded-2xl border bg-muted/20 p-4">
+                <div className="mb-3 text-sm font-medium text-foreground">价格与时长</div>
+                <div className="space-y-2">
+                  {packageOptions.map((item, index) => (
+                    <div
+                      key={`${item.price}-${item.durationMinutes}-${index}`}
+                      className="flex items-center justify-between rounded-xl border bg-white px-4 py-3"
+                    >
+                      <span className="text-sm text-muted-foreground">
+                        {formatServiceDuration(item.durationMinutes)}
+                      </span>
+                      <span className="text-base font-semibold" style={{ color: theme?.secondary ?? "#dc2626" }}>
+                        RM{Number(item.price).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {product.description && (
@@ -228,9 +304,9 @@ export default function ProductDetailClient({
               </div>
             </div>
           </div>
-        </section>
+          </section>
 
-        <section className="space-y-4 rounded-3xl border bg-white p-5 shadow-sm lg:p-6">
+          <section className="space-y-4 rounded-3xl border bg-white p-5 shadow-sm lg:p-6">
           <div className="space-y-1">
             <h2 className="text-lg font-semibold text-foreground">立即预约</h2>
             <p className="text-sm text-muted-foreground">
@@ -255,27 +331,58 @@ export default function ProductDetailClient({
               当前店铺还没有设置 Telegram 联系方式，请先到后台补充店铺 Telegram 用户名。
             </div>
           )}
-        </section>
-      </div>
+          </section>
+        </div>
+
+        <Dialog open={Boolean(fullscreenImageUrl)} onOpenChange={(open) => !open && setFullscreenImageUrl(null)}>
+          <DialogContent
+            className="max-w-[96vw] border-0 bg-white/90 p-2 shadow-2xl sm:max-w-[92vw]"
+            showCloseButton
+          >
+            <DialogTitle className="sr-only">{product.name} 图片预览</DialogTitle>
+            {fullscreenImageUrl && (
+              <div className="relative h-[82vh] w-full overflow-hidden rounded-2xl bg-white">
+                <Image
+                  src={fullscreenImageUrl}
+                  alt={product.name}
+                  fill
+                  className="object-contain"
+                  sizes="100vw"
+                  priority
+                />
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:gap-12">
-      <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-2xl border bg-white p-10">
-        {product.imageUrl ? (
-          <Image
-            src={product.imageUrl}
-            alt={product.name}
-            fill
-            className="object-contain p-8"
-            sizes="(max-width: 768px) 100vw, 50vw"
-            priority
-          />
-        ) : (
-          <EmptyImageState />
-        )}
-      </div>
+    <>
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:gap-12">
+        <button
+          type="button"
+          className="relative flex aspect-square items-center justify-center overflow-hidden rounded-2xl border bg-white p-10 text-left"
+          onClick={() => {
+            if (product.imageUrl) {
+              setFullscreenImageUrl(product.imageUrl);
+            }
+          }}
+        >
+          {product.imageUrl ? (
+            <Image
+              src={product.imageUrl}
+              alt={product.name}
+              fill
+              className="object-contain p-8"
+              sizes="(max-width: 768px) 100vw, 50vw"
+              priority
+            />
+          ) : (
+            <EmptyImageState />
+          )}
+        </button>
 
       <div className="flex flex-col gap-5 py-1">
         {product.category && (
@@ -376,6 +483,28 @@ export default function ProductDetailClient({
           </div>
         )}
       </div>
-    </div>
+      </div>
+
+      <Dialog open={Boolean(fullscreenImageUrl)} onOpenChange={(open) => !open && setFullscreenImageUrl(null)}>
+        <DialogContent
+          className="max-w-[96vw] border-0 bg-white/90 p-2 shadow-2xl sm:max-w-[92vw]"
+          showCloseButton
+        >
+          <DialogTitle className="sr-only">{product.name} 图片预览</DialogTitle>
+          {fullscreenImageUrl && (
+            <div className="relative h-[82vh] w-full overflow-hidden rounded-2xl bg-white">
+              <Image
+                src={fullscreenImageUrl}
+                alt={product.name}
+                fill
+                className="object-contain"
+                sizes="100vw"
+                priority
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

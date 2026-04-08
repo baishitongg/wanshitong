@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getProductsForShop } from "@/lib/commerce";
 import { getStaffShopContext, serializeProduct } from "@/lib/shops";
-import { buildServiceAttributes, type ServiceAvailabilityDay } from "@/lib/service-booking";
+import {
+  buildServiceAttributes,
+  type ServiceAvailabilityDay,
+  type ServiceMediaItem,
+  type ServicePackageOption,
+} from "@/lib/service-booking";
 import { Prisma } from "@prisma/client";
 
 type Body = {
@@ -16,6 +21,8 @@ type Body = {
   status?: boolean;
   attributes?: Record<string, unknown> | null;
   galleryUrls?: string[];
+  galleryMedia?: ServiceMediaItem[];
+  packageOptions?: ServicePackageOption[];
   weeklyAvailability?: ServiceAvailabilityDay[];
   durationMinutes?: number;
   minAdvanceHours?: number;
@@ -72,8 +79,12 @@ export async function POST(req: Request) {
 
     const isServiceShop = shop.shopType === "SERVICE";
     const serviceAttributes = isServiceShop
-      ? buildServiceAttributes({
+        ? buildServiceAttributes({
+          galleryMedia:
+            body.galleryMedia ??
+            (body.galleryUrls ?? []).map((url) => ({ url, type: "image" as const })),
           galleryUrls: body.galleryUrls ?? [],
+          packageOptions: body.packageOptions ?? [],
           weeklyAvailability: body.weeklyAvailability ?? [],
         })
       : null;
@@ -93,8 +104,8 @@ export async function POST(req: Request) {
         fulfillmentType: isServiceShop ? "BOOKING" : "DELIVERY",
         requiresScheduling: isServiceShop,
         durationMinutes: isServiceShop ? body.durationMinutes ?? 60 : null,
-        minAdvanceHours: isServiceShop ? body.minAdvanceHours ?? 0 : null,
-        maxAdvanceDays: isServiceShop ? body.maxAdvanceDays ?? 14 : null,
+        minAdvanceHours: isServiceShop ? 0 : null,
+        maxAdvanceDays: isServiceShop ? 14 : null,
         requiresAddress: isServiceShop ? body.requiresAddress ?? false : true,
         requiresContact: true,
         attributes: isServiceShop
