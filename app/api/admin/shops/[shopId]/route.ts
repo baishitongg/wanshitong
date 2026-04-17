@@ -1,36 +1,16 @@
 import { NextResponse } from "next/server";
 import { CategoryMode, CheckoutMode, ShopStatus, ShopType } from "@prisma/client";
-import { createShop, requireAdminUser } from "@/lib/admin";
-import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/shops";
+import { requireAdminUser, updateShop } from "@/lib/admin";
 
-export async function GET() {
-  const user = await getSessionUser();
-  if (String(user?.role ?? "").toUpperCase() !== "ADMIN") {
-    return NextResponse.json({ error: "无权限" }, { status: 403 });
-  }
-
-  const shops = await prisma.shop.findMany({
-    include: {
-      _count: {
-        select: {
-          products: true,
-          categories: true,
-          orders: true,
-          staffProfiles: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "asc" },
-  });
-
-  return NextResponse.json(shops);
+interface Params {
+  params: Promise<{ shopId: string }>;
 }
 
-export async function POST(req: Request) {
+export async function PATCH(req: Request, { params }: Params) {
   try {
     await requireAdminUser();
 
+    const { shopId } = await params;
     const body = (await req.json()) as {
       name?: string;
       slug?: string;
@@ -45,24 +25,13 @@ export async function POST(req: Request) {
       ownershipType?: "MARKETPLACE" | "SELF_OPERATED";
       checkoutMode?: CheckoutMode;
       categoryMode?: CategoryMode;
-      themePrimary?: string | null;
-      themeSecondary?: string | null;
-      themeAccent?: string | null;
-      themeSurface?: string | null;
       logoUrl?: string | null;
       homepageVariant?: string | null;
-      paymentQrImageUrl?: string | null;
-      bankName?: string | null;
-      bankAccountName?: string | null;
-      bankAccountNumber?: string | null;
       status?: ShopStatus;
     };
 
-    if (!body.name?.trim()) {
-      return NextResponse.json({ error: "店铺名称不能为空" }, { status: 400 });
-    }
-
-    const shop = await createShop({
+    const shop = await updateShop({
+      id: shopId,
       name: body.name,
       slug: body.slug,
       domain: body.domain,
@@ -76,24 +45,17 @@ export async function POST(req: Request) {
       ownershipType: body.ownershipType,
       checkoutMode: body.checkoutMode,
       categoryMode: body.categoryMode,
-      themePrimary: body.themePrimary,
-      themeSecondary: body.themeSecondary,
-      themeAccent: body.themeAccent,
-      themeSurface: body.themeSurface,
       logoUrl: body.logoUrl,
       homepageVariant: body.homepageVariant,
-      paymentQrImageUrl: body.paymentQrImageUrl,
-      bankName: body.bankName,
-      bankAccountName: body.bankAccountName,
-      bankAccountNumber: body.bankAccountNumber,
       status: body.status,
     });
 
-    return NextResponse.json({ shop }, { status: 201 });
+    return NextResponse.json({ shop });
   } catch (error) {
     if (error instanceof Error) {
       const messages: Record<string, string> = {
         FORBIDDEN: "无权限",
+        SHOP_NOT_FOUND: "店铺不存在",
         INVALID_SHOP_NAME: "店铺名称至少需要 2 个字符",
         INVALID_SHOP_SLUG: "店铺链接 slug 无效，请使用字母、数字或连字符",
         SHOP_SLUG_EXISTS: "该店铺 slug 已存在",
@@ -110,9 +72,9 @@ export async function POST(req: Request) {
       }
     }
 
-    console.error("[admin][shops][POST]", error);
+    console.error("[admin][shops][PATCH]", error);
     return NextResponse.json(
-      { error: "创建店铺失败，请稍后重试" },
+      { error: "更新店铺失败，请稍后重试" },
       { status: 500 },
     );
   }

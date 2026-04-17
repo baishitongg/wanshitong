@@ -21,6 +21,8 @@ type CreateOrderInput = {
   selectedProductIds?: string[];
   paymentMethod?: "QR" | "BANK_TRANSFER" | null;
   paymentReceiptUrl?: string | null;
+  requirePayment?: boolean;
+  initialStatus?: OrderStatus;
 };
 
 type CartLineItem = {
@@ -59,7 +61,7 @@ export async function getProductsForShop(shopId: string, includeInactive = false
 export async function getCategoriesForShop(shopId: string) {
   return prisma.category.findMany({
     where: { shopId },
-    orderBy: { name: "asc" },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
 }
 
@@ -268,6 +270,7 @@ export async function createOrderFromCart(input: CreateOrderInput) {
     .replace(/^@+/, "");
   const preferredChannel = input.preferredContactChannel ?? "PHONE";
   const paymentReceiptUrl = input.paymentReceiptUrl?.trim() || null;
+  const requirePayment = input.requirePayment !== false;
 
   if (preferredChannel === "PHONE" && !resolvedPhone) {
     throw new Error("PHONE_REQUIRED");
@@ -277,11 +280,11 @@ export async function createOrderFromCart(input: CreateOrderInput) {
     throw new Error("TELEGRAM_REQUIRED");
   }
 
-  if (!input.paymentMethod) {
+  if (requirePayment && !input.paymentMethod) {
     throw new Error("PAYMENT_METHOD_REQUIRED");
   }
 
-  if (!paymentReceiptUrl) {
+  if (requirePayment && !paymentReceiptUrl) {
     throw new Error("PAYMENT_RECEIPT_REQUIRED");
   }
 
@@ -351,6 +354,7 @@ export async function createOrderFromCart(input: CreateOrderInput) {
         customerPhone: resolvedPhone || null,
         telegramUsername: resolvedTelegram || null,
         preferredContactChannel: preferredChannel,
+        status: input.initialStatus ?? "VERIFYING",
         notes: input.notes ?? null,
         totalAmount,
         addressId: address?.id ?? null,
@@ -364,7 +368,7 @@ export async function createOrderFromCart(input: CreateOrderInput) {
         scheduledDate: bookingSnapshot?.scheduledStart ?? null,
         scheduledStartTime: bookingSnapshot?.scheduledStart ?? null,
         scheduledEndTime: bookingSnapshot?.scheduledEnd ?? null,
-        paymentMethod: input.paymentMethod,
+        paymentMethod: input.paymentMethod ?? null,
         paymentReceiptUrl,
         paymentReceiptUploadedAt: paymentReceiptUrl ? new Date() : null,
         items: {
@@ -508,10 +512,9 @@ export async function updateOrderStatus(
 
     const existingStatus = String(existingOrder.status);
 
-    if (
-      (existingStatus === "CANCELLED" || existingStatus === "RECEIVED") &&
-      nextStatus !== existingStatus
-    ) {
+    const lockedStatuses = ["CANCELLED", "RECEIVED", "REFUND"];
+
+    if (lockedStatuses.includes(existingStatus) && nextStatus !== existingStatus) {
       throw new Error("ORDER_STATUS_LOCKED");
     }
 

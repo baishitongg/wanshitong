@@ -12,7 +12,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const { orderId } = await params;
     const body = (await req.json()) as {
-      status?: "VERIFYING" | "PROCESSING" | "SHIPPED" | "RECEIVED" | "CANCELLED";
+      status?: "VERIFYING" | "PROCESSING" | "SHIPPED" | "RECEIVED" | "CANCELLED" | "REFUND";
       assignedStaffUserId?: string;
     };
 

@@ -16,6 +16,7 @@ interface ProductCardProps extends Product {
   mode?: "buyer" | "admin";
   onEdit?: (product: Product) => void;
   theme?: ShopTheme;
+  imagePriority?: boolean;
 }
 
 export default function ProductCard({
@@ -23,6 +24,7 @@ export default function ProductCard({
   mode = "buyer",
   onEdit,
   theme,
+  imagePriority = false,
   ...product
 }: ProductCardProps) {
   const { data: session } = useSession();
@@ -88,6 +90,7 @@ export default function ProductCard({
             fill
             className="object-contain p-3 transition-transform duration-500"
             sizes="(max-width: 768px) 50vw, 25vw"
+            priority={imagePriority}
           />
         ) : (
           <div className="flex h-full items-center justify-center bg-white">

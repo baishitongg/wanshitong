@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getCategoryAndDescendantIds } from "@/lib/categories";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { DEFAULT_SHOP_SLUG } from "@/lib/constants";
@@ -18,13 +19,13 @@ type CreateProductBody = {
   status?: boolean;
 };
 
-async function getDefaultShopId() {
+async function getDefaultShop() {
   const shop = await prisma.shop.findUnique({
     where: { slug: DEFAULT_SHOP_SLUG },
-    select: { id: true },
+    select: { id: true, categoryMode: true },
   });
 
-  return shop?.id ?? null;
+  return shop;
 }
 
 export async function GET(req: Request) {
@@ -35,13 +36,23 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const categoryId = searchParams.get("categoryId");
-  const shopId = await getDefaultShopId();
+  const shop = await getDefaultShop();
+  const categories =
+    shop && categoryId
+      ? await prisma.category.findMany({ where: { shopId: shop.id } })
+      : [];
+  const categoryIds =
+    categoryId && categories.length > 0
+      ? getCategoryAndDescendantIds(categories, categoryId)
+      : categoryId
+        ? [categoryId]
+        : [];
 
   const products = await prisma.product.findMany({
     where: {
-      ...(shopId ? { shopId } : {}),
+      ...(shop ? { shopId: shop.id } : {}),
       ...(isStaff ? {} : { status: true }),
-      ...(categoryId ? { categoryId } : {}),
+      ...(categoryId ? { categoryId: { in: categoryIds } } : {}),
     },
     include: { category: true },
     orderBy: { createdAt: "desc" },
@@ -65,8 +76,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "无权限" }, { status: 403 });
   }
 
-  const shopId = await getDefaultShopId();
-  if (!shopId) {
+  const shop = await getDefaultShop();
+  if (!shop) {
     return NextResponse.json({ error: "店铺不存在" }, { status: 400 });
   }
 
@@ -80,9 +91,26 @@ export async function POST(req: Request) {
     );
   }
 
+  const category = await prisma.category.findFirst({
+    where: { id: categoryId, shopId: shop.id },
+    include: {
+      _count: {
+        select: { children: true },
+      },
+    },
+  });
+
+  if (!category) {
+    return NextResponse.json({ error: "分类不存在" }, { status: 400 });
+  }
+
+  if (shop.categoryMode === "NESTED" && category._count.children > 0) {
+    return NextResponse.json({ error: "请选择最后一级分类" }, { status: 400 });
+  }
+
   const product = await prisma.product.create({
     data: {
-      shopId,
+      shopId: shop.id,
       name,
       description: description || null,
       price,

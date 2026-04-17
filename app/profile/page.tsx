@@ -555,10 +555,9 @@ function OrdersTab() {
 
   const [statusFilter, setStatusFilter] = useState<
     | "ALL"
-    | "PENDING"
     | "PROCESSING"
-    | "COMPLETED"
     | "CANCELLED"
+    | "REFUND"
     | "VERIFYING"
     | "SHIPPED"
     | "RECEIVED"
@@ -586,14 +585,18 @@ function OrdersTab() {
   const normalizeStatus = (status: string) => {
     const s = status.toUpperCase();
 
-    if (s === "PENDING" || status === "待处理") return "PENDING";
+    if (s === "PENDING" || s === "VERIFYING" || status === "待处理" || status === "未付款" || status === "未支付") return "VERIFYING";
     if (s === "PROCESSING" || status === "处理中") return "PROCESSING";
-    if (s === "COMPLETED" || s === "DONE" || status === "已完成") {
-      return "COMPLETED";
+    if (s === "SHIPPED" || s === "DONE" || status === "已发货" || status === "已发出" || status === "已送货") {
+      return "SHIPPED";
+    }
+    if (s === "RECEIVED" || s === "COMPLETED" || status === "已收货" || status === "已接受" || status === "已收获") {
+      return "RECEIVED";
     }
     if (s === "CANCELLED" || s === "CANCELED" || status === "已取消") {
       return "CANCELLED";
     }
+    if (s === "REFUND" || status === "已退款") return "REFUND";
 
     return s;
   };
@@ -653,15 +656,15 @@ function OrdersTab() {
           </Button>
           <Button
             size="sm"
-            variant={statusFilter === "PENDING" ? "default" : "outline"}
+            variant={statusFilter === "VERIFYING" ? "default" : "outline"}
             className={
-              statusFilter === "PENDING"
+              statusFilter === "VERIFYING"
                 ? "bg-red-700 hover:bg-red-600 text-white"
                 : ""
             }
-            onClick={() => setStatusFilter("PENDING")}
+            onClick={() => setStatusFilter("VERIFYING")}
           >
-            待处理
+            未支付
           </Button>
           <Button
             size="sm"
@@ -677,15 +680,27 @@ function OrdersTab() {
           </Button>
           <Button
             size="sm"
-            variant={statusFilter === "COMPLETED" ? "default" : "outline"}
+            variant={statusFilter === "SHIPPED" ? "default" : "outline"}
             className={
-              statusFilter === "COMPLETED"
+              statusFilter === "SHIPPED"
                 ? "bg-red-700 hover:bg-red-600 text-white"
                 : ""
             }
-            onClick={() => setStatusFilter("COMPLETED")}
+            onClick={() => setStatusFilter("SHIPPED")}
           >
-            已完成
+            已送货
+          </Button>
+          <Button
+            size="sm"
+            variant={statusFilter === "RECEIVED" ? "default" : "outline"}
+            className={
+              statusFilter === "RECEIVED"
+                ? "bg-red-700 hover:bg-red-600 text-white"
+                : ""
+            }
+            onClick={() => setStatusFilter("RECEIVED")}
+          >
+            已收获
           </Button>
           <Button
             size="sm"
@@ -698,6 +713,18 @@ function OrdersTab() {
             onClick={() => setStatusFilter("CANCELLED")}
           >
             已取消
+          </Button>
+          <Button
+            size="sm"
+            variant={statusFilter === "REFUND" ? "default" : "outline"}
+            className={
+              statusFilter === "REFUND"
+                ? "bg-red-700 hover:bg-red-600 text-white"
+                : ""
+            }
+            onClick={() => setStatusFilter("REFUND")}
+          >
+            已退款
           </Button>
         </div>
       </div>
@@ -743,6 +770,11 @@ function OrdersTab() {
                         {order.deliveryCity &&
                           ` · 配送至 ${order.deliveryCity}`}
                       </p>
+                      {order.status === "VERIFYING" && (
+                        <p className="text-xs text-amber-700">
+                          订单已提交，商家会尽快提供付款方式并确认订单。
+                        </p>
+                      )}
                     </div>
                     <span className="font-bold text-base shrink-0">
                       RM{Number(order.totalAmount).toFixed(2)}
@@ -837,6 +869,12 @@ function OrdersTab() {
                     {selectedOrder.deliveryPostcode},{" "}
                     {selectedOrder.deliveryCountry}
                   </p>
+                </div>
+              )}
+
+              {selectedOrder.status === "VERIFYING" && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  订单已提交，商家会尽快通过您选择的联系方式提供付款方式并确认订单。
                 </div>
               )}
 
@@ -986,7 +1024,7 @@ function ProfilePageContent() {
         shopSlug={shopSlug}
         homeHref={shopSlug ? buildShopHref(shopSlug) : "/"}
       />
-      <div className="container mx-auto px-6 md:px-20 py-8 max-w-2xl">
+      <div className="container mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
         {shopSlug && (
           <Link
             href={buildShopHref(shopSlug)}

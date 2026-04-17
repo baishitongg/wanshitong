@@ -78,6 +78,7 @@ export default async function AdminStaffPage() {
 
             return {
               ...shop,
+              domain: (shop as typeof shop & { domain?: string | null }).domain ?? null,
               description: shop.description ?? null,
               heroTitle: shop.heroTitle ?? null,
               heroSubtitle: shop.heroSubtitle ?? null,

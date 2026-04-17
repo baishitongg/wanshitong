@@ -15,7 +15,6 @@ const tabs: Array<{
   label: string;
 }> = [
   { key: "analytics", href: "/admin", label: "数据分析" },
-  { key: "orders", href: "/admin/orders", label: "订单处理" },
   { key: "shops", href: "/admin/shops", label: "店铺管理" },
   { key: "staff", href: "/admin/staff", label: "员工账号" },
 ];
@@ -30,7 +29,7 @@ export default function AdminNav({ active }: AdminNavProps) {
       <div>
         <h1 className="text-3xl font-bold text-gray-900">管理后台</h1>
         <p className="mt-2 text-sm text-gray-500">
-          数据分析、订单处理、店铺管理与员工账号分开处理，更清晰也更方便。
+          数据分析、店铺管理与员工账号分开处理，更清晰也更方便。
         </p>
       </div>
 

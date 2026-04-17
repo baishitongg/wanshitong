@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { normalizeCategorySlug } from "@/lib/categories";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_SHOP_SLUG } from "@/lib/constants";
 
@@ -10,6 +11,7 @@ type SessionUser = {
 
 type CreateCategoryBody = {
   name?: string;
+  parentId?: string | null;
 };
 
 async function getDefaultShopId() {
@@ -26,7 +28,7 @@ export async function GET() {
 
   const categories = await prisma.category.findMany({
     where: shopId ? { shopId } : undefined,
-    orderBy: { name: "asc" },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
 
   return NextResponse.json(categories);
@@ -48,17 +50,30 @@ export async function POST(req: Request) {
 
   const body = (await req.json()) as CreateCategoryBody;
   const name = body.name?.trim();
+  const parentId = body.parentId?.trim() || null;
 
   if (!name) {
     return NextResponse.json({ error: "分类名称不能为空" }, { status: 400 });
   }
 
-  const existing = await prisma.category.findUnique({
-    where: {
-      shopId_name: {
+  if (parentId) {
+    const parent = await prisma.category.findFirst({
+      where: {
+        id: parentId,
         shopId,
-        name,
       },
+    });
+
+    if (!parent) {
+      return NextResponse.json({ error: "父分类不存在" }, { status: 400 });
+    }
+  }
+
+  const existing = await prisma.category.findFirst({
+    where: {
+      shopId,
+      parentId,
+      name,
     },
   });
 
@@ -69,7 +84,9 @@ export async function POST(req: Request) {
   const category = await prisma.category.create({
     data: {
       name,
+      slug: normalizeCategorySlug(name) || null,
       shopId,
+      parentId,
     },
   });
 

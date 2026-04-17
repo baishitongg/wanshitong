@@ -25,7 +25,7 @@ export const getCachedCategories = unstable_cache(
       where: {
         shop: { slug: shopSlug },
       },
-      orderBy: { name: "asc" },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     }),
   ["categories-list"],
   { revalidate: 300, tags: ["categories"] },

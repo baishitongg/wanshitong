@@ -30,7 +30,9 @@ export async function GET() {
     }),
   ]);
 
-  const nonCancelledOrders = orders.filter((order) => String(order.status) !== "CANCELLED");
+  const nonCancelledOrders = orders.filter(
+    (order) => !["CANCELLED", "REFUND"].includes(String(order.status)),
+  );
   const selfOperatedShopIds = new Set(
     shops
       .filter((shop) => shop.ownershipType === "SELF_OPERATED")

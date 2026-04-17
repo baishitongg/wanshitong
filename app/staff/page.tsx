@@ -65,19 +65,21 @@ type SessionUser = {
 };
 
 const STATUS_OPTIONS = [
-  "PENDING",
-  "CONFIRMED",
+  "VERIFYING",
   "PROCESSING",
-  "DONE",
+  "SHIPPED",
   "CANCELLED",
+  "REFUND",
 ] as const;
 
 const statusLabels: Record<string, string> = {
   ALL: "全部",
-  PENDING: "待处理",
+  VERIFYING: "未支付",
   PROCESSING: "处理中",
-  DONE: "已完成",
+  SHIPPED: "已送货",
+  RECEIVED: "已收获",
   CANCELLED: "已取消",
+  REFUND: "已退款",
 };
 
 // ─── Orders Tab ───────────────────────────────────────────────────────────────
@@ -244,9 +246,9 @@ function OrdersTab() {
 
   const stats = {
     total: orders.length,
-    pending: orders.filter((o) => String(o.status) === "PENDING").length,
+    pending: orders.filter((o) => String(o.status) === "VERIFYING").length,
     processing: orders.filter((o) => String(o.status) === "PROCESSING").length,
-    done: orders.filter((o) => String(o.status) === "DONE").length,
+    done: orders.filter((o) => String(o.status) === "SHIPPED").length,
   };
 
   function buildWhatsAppMessageByStatus(order: Order, nextStatus?: string) {
@@ -260,10 +262,10 @@ function OrdersTab() {
           `如有更新，我们会再通知您。`,
         ].join("\n");
 
-      case "DONE":
+      case "SHIPPED":
         return [
           `您好，${order.customerName ?? "顾客"}，`,
-          `您的订单 #${order.id.slice(-8).toUpperCase()} 已完成。`,
+          `您的订单 #${order.id.slice(-8).toUpperCase()} 已送货。`,
           `感谢您的支持。`,
         ].join("\n");
 
@@ -493,7 +495,8 @@ function OrdersTab() {
                         updateStatus(order.id, val as OrderStatus)
                       }
                       disabled={
-                        updatingId === order.id || order.status === "CANCELLED"
+                        updatingId === order.id ||
+                        ["CANCELLED", "RECEIVED", "REFUND"].includes(order.status)
                       }
                     >
                       <SelectTrigger

@@ -21,7 +21,8 @@ type FilterStatus =
   | "PROCESSING"
   | "SHIPPED"
   | "RECEIVED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "REFUND";
 
 export default function ProfileOrdersTab() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -52,13 +53,14 @@ export default function ProfileOrdersTab() {
   const normalizeStatus = (status: string) => {
     const s = status.toUpperCase();
 
-    if (s === "PENDING" || s === "CONFIRMED" || s === "VERIFYING" || status === "验证中") {
+    if (s === "PENDING" || s === "CONFIRMED" || s === "VERIFYING" || status === "验证中" || status === "未付款" || status === "未支付") {
       return "VERIFYING";
     }
     if (s === "PROCESSING" || status === "处理中") return "PROCESSING";
-    if (s === "SHIPPED" || s === "DONE" || status === "已发货") return "SHIPPED";
-    if (s === "RECEIVED" || s === "COMPLETED" || status === "已收货") return "RECEIVED";
+    if (s === "SHIPPED" || s === "DONE" || status === "已发货" || status === "已发出" || status === "已送货") return "SHIPPED";
+    if (s === "RECEIVED" || s === "COMPLETED" || status === "已收货" || status === "已接受" || status === "已收获") return "RECEIVED";
     if (s === "CANCELLED" || s === "CANCELED" || status === "已取消") return "CANCELLED";
+    if (s === "REFUND" || status === "已退款") return "REFUND";
 
     return s;
   };
@@ -134,11 +136,12 @@ export default function ProfileOrdersTab() {
         <div className="flex flex-wrap gap-2">
           {[
             ["ALL", "全部"],
-            ["VERIFYING", "验证中"],
+            ["VERIFYING", "未支付"],
             ["PROCESSING", "处理中"],
-            ["SHIPPED", "已发货"],
-            ["RECEIVED", "已收货"],
+            ["SHIPPED", "已送货"],
+            ["RECEIVED", "已收获"],
             ["CANCELLED", "已取消"],
+            ["REFUND", "已退款"],
           ].map(([value, label]) => (
             <Button
               key={value}
@@ -203,6 +206,11 @@ export default function ProfileOrdersTab() {
                         共 {order.items.length} 件商品
                         {order.deliveryCity ? ` · 配送至 ${order.deliveryCity}` : ""}
                       </p>
+                      {order.status === "VERIFYING" && (
+                        <p className="text-xs text-amber-700">
+                          订单已提交，商家会尽快提供付款方式并确认订单。
+                        </p>
+                      )}
                     </div>
                     <span className="font-bold text-base shrink-0">
                       RM{Number(order.totalAmount).toFixed(2)}
@@ -342,6 +350,12 @@ export default function ProfileOrdersTab() {
                 </div>
               )}
 
+              {selectedOrder.status === "VERIFYING" && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  订单已提交，商家会尽快通过您选择的联系方式提供付款方式并确认订单。
+                </div>
+              )}
+
               {selectedOrder.deliveryStreet && (
                 <div className="bg-muted/50 rounded-lg p-3 space-y-1">
                   <p className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground uppercase tracking-wide">
@@ -414,7 +428,7 @@ export default function ProfileOrdersTab() {
                   onClick={() => void handleConfirmReceived(selectedOrder.id)}
                   disabled={confirmingId === selectedOrder.id}
                 >
-                  {confirmingId === selectedOrder.id ? "提交中..." : "确认已收货"}
+                  {confirmingId === selectedOrder.id ? "提交中..." : "确认已收获"}
                 </Button>
               )}
             </div>

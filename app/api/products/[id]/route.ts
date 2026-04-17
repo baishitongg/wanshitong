@@ -41,6 +41,29 @@ export async function PATCH(
         return NextResponse.json({ error: "商品不存在" }, { status: 404 });
     }
 
+    if (categoryId) {
+        const shop = await prisma.shop.findUnique({
+            where: { id: existing.shopId },
+            select: { categoryMode: true },
+        });
+        const category = await prisma.category.findFirst({
+            where: { id: categoryId, shopId: existing.shopId },
+            include: {
+                _count: {
+                    select: { children: true },
+                },
+            },
+        });
+
+        if (!category) {
+            return NextResponse.json({ error: "分类不存在" }, { status: 400 });
+        }
+
+        if (shop?.categoryMode === "NESTED" && category._count.children > 0) {
+            return NextResponse.json({ error: "请选择最后一级分类" }, { status: 400 });
+        }
+    }
+
     const product = await prisma.product.update({
         where: { id },
         data: {

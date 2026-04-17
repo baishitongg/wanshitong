@@ -1,6 +1,0 @@
-ALTER TABLE "CartItem"
-ADD COLUMN "slotKey" TEXT,
-ADD COLUMN "scheduledStart" TIMESTAMP(3),
-ADD COLUMN "scheduledEnd" TIMESTAMP(3),
-ADD COLUMN "meta" JSONB;
-

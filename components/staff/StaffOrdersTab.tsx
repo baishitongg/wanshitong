@@ -8,9 +8,11 @@ import {
   Clock,
   Loader2,
   MapPin,
+  MessageCircle,
   Package,
   RefreshCw,
   Search,
+  Send,
   Wifi,
   WifiOff,
 } from "lucide-react";
@@ -25,17 +27,29 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { getSocket, SOCKET_EVENTS } from "@/lib/socket";
-import type { Order } from "@/types";
+import type { Order, OrderStatus } from "@/types";
 
 type SessionUser = {
   role?: string;
   staffShopId?: string | null;
 };
 
-const SUPPORT_WHATSAPP = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP ?? "";
-const SUPPORT_TELEGRAM = process.env.NEXT_PUBLIC_SUPPORT_TELEGRAM ?? "";
+const SELLER_STATUS_OPTIONS = [
+  { value: "VERIFYING", label: "未支付" },
+  { value: "PROCESSING", label: "处理中" },
+  { value: "SHIPPED", label: "已送货" },
+  { value: "CANCELLED", label: "已取消" },
+  { value: "REFUND", label: "已退款" },
+] satisfies Array<{ value: OrderStatus; label: string }>;
 
 function buildWhatsAppLink(phone: string) {
   return `https://wa.me/${phone.replace(/\D/g, "")}`;
@@ -43,6 +57,28 @@ function buildWhatsAppLink(phone: string) {
 
 function buildTelegramLink(username: string) {
   return `https://t.me/${username.replace(/^@+/, "")}`;
+}
+
+function getCustomerContact(order: Order) {
+  if (order.preferredContactChannel === "TELEGRAM" && order.telegramUsername) {
+    return {
+      href: buildTelegramLink(order.telegramUsername),
+      label: "Telegram",
+      Icon: Send,
+      className: "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100",
+    };
+  }
+
+  if (order.customerPhone) {
+    return {
+      href: buildWhatsAppLink(order.customerPhone),
+      label: "WhatsApp",
+      Icon: MessageCircle,
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+    };
+  }
+
+  return null;
 }
 
 export default function StaffOrdersTab() {
@@ -99,11 +135,18 @@ export default function StaffOrdersTab() {
       setOrders((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
       setSelectedOrder((prev) => (prev?.id === updated.id ? updated : prev));
     });
+    socket.on(SOCKET_EVENTS.NEW_ORDER, (created: Order) => {
+      setOrders((prev) =>
+        prev.some((item) => item.id === created.id) ? prev : [created, ...prev],
+      );
+      toast.success("收到新订单");
+    });
 
     return () => {
       socket.off(SOCKET_EVENTS.CONNECT, joinRoom);
       socket.off(SOCKET_EVENTS.DISCONNECT);
       socket.off(SOCKET_EVENTS.ORDER_UPDATED);
+      socket.off(SOCKET_EVENTS.NEW_ORDER);
     };
   }, [currentUser?.role, currentUser?.staffShopId]);
 
@@ -125,13 +168,13 @@ export default function StaffOrdersTab() {
     setPage(1);
   }, [searchOrderId]);
 
-  const markShipped = async (orderId: string) => {
+  const updateStatus = async (orderId: string, status: OrderStatus) => {
     setUpdatingId(orderId);
     try {
       const res = await fetch(`/api/staff/shop/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "SHIPPED" }),
+        body: JSON.stringify({ status }),
       });
       const data = await res.json();
 
@@ -143,7 +186,7 @@ export default function StaffOrdersTab() {
       const updated = data as Order;
       setOrders((prev) => prev.map((item) => (item.id === orderId ? updated : item)));
       setSelectedOrder((prev) => (prev?.id === orderId ? updated : prev));
-      toast.success("订单已改为已发货");
+      toast.success("订单状态已更新");
     } catch {
       toast.error("更新失败");
     } finally {
@@ -179,35 +222,6 @@ export default function StaffOrdersTab() {
         </Button>
       </div>
 
-      <div className="rounded-xl border bg-amber-50 p-4 text-sm text-amber-900">
-        <div className="font-medium">联系万事通</div>
-        <div className="mt-1 text-amber-800">
-          店铺 staff 不直接联系顾客。如需沟通，请联系万事通平台处理。
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {SUPPORT_WHATSAPP && (
-            <a
-              href={buildWhatsAppLink(SUPPORT_WHATSAPP)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg border border-amber-300 bg-white px-3 py-2"
-            >
-              WhatsApp
-            </a>
-          )}
-          {SUPPORT_TELEGRAM && (
-            <a
-              href={buildTelegramLink(SUPPORT_TELEGRAM)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg border border-amber-300 bg-white px-3 py-2"
-            >
-              Telegram
-            </a>
-          )}
-        </div>
-      </div>
-
       <div className="flex flex-col gap-3 md:flex-row md:items-center">
         <div className="relative w-full md:w-80">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -230,12 +244,15 @@ export default function StaffOrdersTab() {
       ) : (
         <>
           <div className="space-y-3">
-            {paginatedOrders.map((order) => (
-              <Card
-                key={order.id}
-                className="cursor-pointer transition-colors hover:border-primary/40"
-                onClick={() => setSelectedOrder(order)}
-              >
+            {paginatedOrders.map((order) => {
+              const contact = getCustomerContact(order);
+
+              return (
+                <Card
+                  key={order.id}
+                  className="cursor-pointer transition-colors hover:border-primary/40"
+                  onClick={() => setSelectedOrder(order)}
+                >
                 <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -252,30 +269,62 @@ export default function StaffOrdersTab() {
                     <p className="text-xs text-muted-foreground">
                       电话：{order.customerPhone || "-"}
                     </p>
+                    {contact && (
+                      <a
+                        href={contact.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(event) => event.stopPropagation()}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${contact.className}`}
+                      >
+                        <contact.Icon className="h-3.5 w-3.5" />
+                        {contact.label}
+                      </a>
+                    )}
                     <p className="text-xs text-muted-foreground">
                       共 {order.items.length} 项
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3 sm:justify-end">
                     <span className="text-lg font-bold">RM{Number(order.totalAmount).toFixed(2)}</span>
-                    <Button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void markShipped(order.id);
-                      }}
-                      disabled={updatingId === order.id || order.status !== "PROCESSING"}
-                      className="bg-black text-white hover:bg-black/90"
-                    >
-                      {updatingId === order.id ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : null}
-                      标记已发货
-                    </Button>
+                    {order.status === "RECEIVED" ? (
+                      <span className="rounded-lg border bg-green-50 px-3 py-2 text-xs font-medium text-green-700">
+                        顾客已收获
+                      </span>
+                    ) : (
+                      <div onClick={(event) => event.stopPropagation()}>
+                        <Select
+                          value={order.status}
+                          onValueChange={(value) =>
+                            void updateStatus(order.id, value as OrderStatus)
+                          }
+                          disabled={
+                            updatingId === order.id ||
+                            ["CANCELLED", "REFUND"].includes(order.status)
+                          }
+                        >
+                          <SelectTrigger className="h-9 w-32 text-xs">
+                            {updatingId === order.id ? (
+                              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                            ) : null}
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SELLER_STATUS_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} value={option.value} className="text-xs">
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
 
           <div className="flex items-center justify-between pt-2">
@@ -320,6 +369,20 @@ export default function StaffOrdersTab() {
                 <div>
                   <p className="font-semibold">{selectedOrder.customerName ?? "顾客"}</p>
                   <p className="text-sm text-muted-foreground">{selectedOrder.customerPhone || "-"}</p>
+                  {getCustomerContact(selectedOrder) && (
+                    <a
+                      href={getCustomerContact(selectedOrder)!.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${getCustomerContact(selectedOrder)!.className}`}
+                    >
+                      {(() => {
+                        const ContactIcon = getCustomerContact(selectedOrder)!.Icon;
+                        return <ContactIcon className="h-3.5 w-3.5" />;
+                      })()}
+                      {getCustomerContact(selectedOrder)!.label}
+                    </a>
+                  )}
                   <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
                     订单 ID：{selectedOrder.id}
                   </p>

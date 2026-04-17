@@ -9,7 +9,7 @@ export async function GET(req: Request) {
     const statusParam = searchParams.get("status");
 
     const orders = await getStaffOrders({
-      ...(context.isAdmin ? {} : { assignedStaffUserId: context.user.id! }),
+      ...(context.isAdmin ? {} : { shopId: context.shopId! }),
       ...(isValidOrderStatus(statusParam) ? { status: statusParam } : {}),
     });
 

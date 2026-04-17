@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ProductCard from "@/components/ProductCard";
 import type { Product, Category } from "@/types";
+import {
+  flattenCategoryTree,
+  getCategoryAndDescendantIds,
+} from "@/lib/categories";
 import { buildShopHref } from "@/lib/shops";
 import type { ShopTheme } from "@/lib/shopTheme";
 
@@ -40,7 +44,54 @@ export default function ProductGridWithFilter({
   const [search, setSearch] = useState(defaultSearch);
   const [page, setPage] = useState(1);
 
-  const active = products.filter((product) => product.status);
+  const active = useMemo(
+    () => products.filter((product) => product.status),
+    [products],
+  );
+  const categoryOptions = useMemo(() => flattenCategoryTree(categories), [categories]);
+  const selectedCategoryIds = useMemo(
+    () =>
+      selectedCategory === "ALL"
+        ? []
+        : getCategoryAndDescendantIds(categories, selectedCategory),
+    [categories, selectedCategory],
+  );
+
+  useEffect(() => {
+    const imageUrls = active
+      .map((product) => product.imageUrl)
+      .filter((url): url is string => Boolean(url))
+      .slice(0, 24);
+
+    if (imageUrls.length === 0) return;
+
+    const preload = () => {
+      imageUrls.forEach((url) => {
+        const link = document.createElement("link");
+        link.rel = "prefetch";
+        link.as = "image";
+        link.href = url;
+        document.head.appendChild(link);
+      });
+    };
+
+    const browserWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    const idleCallback = browserWindow.requestIdleCallback
+      ? browserWindow.requestIdleCallback(preload)
+      : globalThis.setTimeout(preload, 600);
+
+    return () => {
+      if (browserWindow.cancelIdleCallback && typeof idleCallback === "number") {
+        browserWindow.cancelIdleCallback(idleCallback);
+      } else {
+        globalThis.clearTimeout(idleCallback);
+      }
+    };
+  }, [active]);
 
   const handleCategoryChange = (id: string) => {
     setSelectedCategory(id);
@@ -55,7 +106,7 @@ export default function ProductGridWithFilter({
   const filtered = useMemo(() => {
     let list = active;
     if (selectedCategory !== "ALL") {
-      list = list.filter((product) => product.categoryId === selectedCategory);
+      list = list.filter((product) => selectedCategoryIds.includes(product.categoryId));
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -66,7 +117,7 @@ export default function ProductGridWithFilter({
       );
     }
     return list;
-  }, [active, selectedCategory, search]);
+  }, [active, selectedCategory, selectedCategoryIds, search]);
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const slice = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
@@ -74,7 +125,7 @@ export default function ProductGridWithFilter({
   const currentCategoryName =
     selectedCategory === "ALL"
       ? null
-      : categories.find((category) => category.id === selectedCategory)?.name ??
+      : categoryOptions.find((category) => category.id === selectedCategory)?.name ??
         null;
 
   return (
@@ -138,7 +189,7 @@ export default function ProductGridWithFilter({
             全部分类
           </button>
 
-          {categories.map((category) => (
+          {categoryOptions.map((category) => (
             <button
               key={category.id}
               type="button"
@@ -157,7 +208,7 @@ export default function ProductGridWithFilter({
                   : undefined
               }
             >
-              {category.name}
+              {category.label}
             </button>
           ))}
         </div>
@@ -198,7 +249,7 @@ export default function ProductGridWithFilter({
       ) : (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {slice.map((product) => (
+            {slice.map((product, index) => (
               <Link
                 key={product.id}
                 href={buildShopHref(shopSlug, `/product/${product.id}`)}
@@ -209,6 +260,7 @@ export default function ProductGridWithFilter({
                   shopSlug={shopSlug}
                   mode="buyer"
                   theme={theme}
+                  imagePriority={index < 4}
                 />
               </Link>
             ))}

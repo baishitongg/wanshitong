@@ -2,6 +2,7 @@ export type Role = "CUSTOMER" | "STAFF" | "ADMIN";
 export type ShopType = "PRODUCT" | "SERVICE" | "HYBRID";
 export type OwnershipType = "MARKETPLACE" | "SELF_OPERATED";
 export type CheckoutMode = "DELIVERY" | "BOOKING" | "FLEXIBLE";
+export type CategoryMode = "FLAT" | "NESTED";
 export type ItemType = "PHYSICAL" | "SERVICE";
 export type FulfillmentType = "DELIVERY" | "PICKUP" | "BOOKING";
 export type OrderFlowType = "DELIVERY" | "PICKUP" | "BOOKING";
@@ -21,12 +22,18 @@ export type OrderStatus =
     | "PROCESSING"
     | "SHIPPED"
     | "RECEIVED"
-    | "CANCELLED";
+    | "CANCELLED"
+    | "REFUND";
 
 export interface Category {
     id: string;
     shopId: string;
     name: string;
+    slug?: string | null;
+    parentId?: string | null;
+    sortOrder?: number;
+    parent?: { id: string; name: string; parentId?: string | null } | null;
+    children?: Category[];
     createdAt?: Date | string;
     updatedAt?: Date | string;
 }
@@ -51,7 +58,7 @@ export interface Product {
     requiresAddress: boolean;
     requiresContact: boolean;
     attributes?: unknown | null;
-    category?: { id: string; name: string };
+    category?: { id: string; name: string; parentId?: string | null };
     shop?: { id: string; name: string; slug: string };
     createdAt: Date | string;
     updatedAt: Date | string;
@@ -117,6 +124,7 @@ export interface Order {
     customerName: string | null;
     customerPhone: string | null;
     telegramUsername: string | null;
+    preferredContactChannel: "PHONE" | "TELEGRAM";
     notes: string | null;
     // Delivery address snapshot
     addressId: string | null;
@@ -158,6 +166,7 @@ export interface Shop {
     id: string;
     name: string;
     slug: string;
+    domain: string | null;
     description: string | null;
     heroTitle: string | null;
     heroSubtitle: string | null;

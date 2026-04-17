@@ -38,12 +38,12 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status") ?? undefined;
 
-  const validStatuses = ["VERIFYING", "PROCESSING", "SHIPPED", "RECEIVED", "CANCELLED"];
+  const validStatuses = ["VERIFYING", "PROCESSING", "SHIPPED", "RECEIVED", "CANCELLED", "REFUND"];
 
   const orders = await prisma.order.findMany({
     where:
       status && validStatuses.includes(status)
-        ? { status: status as "VERIFYING" | "PROCESSING" | "SHIPPED" | "RECEIVED" | "CANCELLED" }
+        ? { status: status as never }
         : undefined,
     include: {
       items: { include: { product: true } },

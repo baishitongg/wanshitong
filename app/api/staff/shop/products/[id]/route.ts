@@ -42,7 +42,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const shop = await prisma.shop.findUnique({
       where: { id: context.shopId! },
-      select: { id: true, shopType: true, ownershipType: true },
+      select: { id: true, shopType: true, ownershipType: true, categoryMode: true },
     });
 
     if (!shop) {
@@ -65,10 +65,19 @@ export async function PATCH(req: Request, { params }: Params) {
     if (body.categoryId) {
       const category = await prisma.category.findFirst({
         where: { id: body.categoryId, shopId: context.shopId! },
+        include: {
+          _count: {
+            select: { children: true },
+          },
+        },
       });
 
       if (!category) {
         return NextResponse.json({ error: "分类不存在" }, { status: 400 });
+      }
+
+      if (shop.categoryMode === "NESTED" && category._count.children > 0) {
+        return NextResponse.json({ error: "请选择最后一级分类" }, { status: 400 });
       }
     }
 

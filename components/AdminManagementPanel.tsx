@@ -13,6 +13,7 @@ type ShopSummary = {
   id: string;
   name: string;
   slug: string;
+  domain: string | null;
   description: string | null;
   heroTitle: string | null;
   heroSubtitle: string | null;
@@ -22,6 +23,7 @@ type ShopSummary = {
   shopType: "PRODUCT" | "SERVICE" | "HYBRID";
   ownershipType: "MARKETPLACE" | "SELF_OPERATED";
   checkoutMode: "DELIVERY" | "BOOKING" | "FLEXIBLE";
+  categoryMode: "FLAT" | "NESTED";
   themePrimary: string | null;
   themeSecondary: string | null;
   themeAccent: string | null;
@@ -66,6 +68,7 @@ interface AdminManagementPanelProps {
 const initialShopForm = {
   name: "",
   slug: "",
+  domain: "",
   description: "",
   heroTitle: "",
   heroSubtitle: "",
@@ -75,6 +78,7 @@ const initialShopForm = {
   shopType: "PRODUCT" as "PRODUCT" | "SERVICE" | "HYBRID",
   ownershipType: "MARKETPLACE" as "MARKETPLACE" | "SELF_OPERATED",
   checkoutMode: "DELIVERY" as "DELIVERY" | "BOOKING" | "FLEXIBLE",
+  categoryMode: "FLAT" as "FLAT" | "NESTED",
   themePrimary: "",
   themeSecondary: "",
   themeAccent: "",
@@ -88,6 +92,63 @@ const initialShopForm = {
   status: "ACTIVE" as "ACTIVE" | "INACTIVE",
 };
 
+const SHOP_TYPE_THEMES = {
+  PRODUCT: {
+    themePrimary: "#7f1d1d",
+    themeSecondary: "#b91c1c",
+    themeAccent: "#ef4444",
+    themeSurface: "#ffffff",
+  },
+  SERVICE: {
+    themePrimary: "#C85C7C",
+    themeSecondary: "#F4A261",
+    themeAccent: "#FF6B6B",
+    themeSurface: "#ffffff",
+  },
+  HYBRID: {
+    themePrimary: "#7f1d1d",
+    themeSecondary: "#b91c1c",
+    themeAccent: "#ef4444",
+    themeSurface: "#ffffff",
+  },
+} satisfies Record<"PRODUCT" | "SERVICE" | "HYBRID", {
+  themePrimary: string;
+  themeSecondary: string;
+  themeAccent: string;
+  themeSurface: string;
+}>;
+
+function toShopForm(shop: ShopSummary) {
+  return {
+    name: shop.name,
+    slug: shop.slug,
+    domain: shop.domain ?? "",
+    description: shop.description ?? "",
+    heroTitle: shop.heroTitle ?? "",
+    heroSubtitle: shop.heroSubtitle ?? "",
+    heroImageUrl: shop.heroImageUrl ?? "",
+    whatsappPhone: shop.whatsappPhone ?? "",
+    telegramUsername: shop.telegramUsername ?? "",
+    shopType: shop.shopType,
+    ownershipType: shop.ownershipType,
+    checkoutMode: shop.checkoutMode,
+    categoryMode: shop.categoryMode,
+    logoUrl: shop.logoUrl ?? "",
+    homepageVariant: shop.homepageVariant ?? "",
+    status: shop.status,
+  };
+}
+
+function toStaffForm(profile: StaffSummary) {
+  return {
+    name: profile.user.name ?? "",
+    loginId: profile.user.phone,
+    password: "",
+    shopId: profile.shop.id,
+    isActive: profile.isActive,
+  };
+}
+
 export default function AdminManagementPanel({
   shops,
   staffProfiles,
@@ -98,14 +159,19 @@ export default function AdminManagementPanel({
   const [creatingStaff, setCreatingStaff] = useState(false);
   const [uploadingHero, setUploadingHero] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [uploadingPaymentQr, setUploadingPaymentQr] = useState(false);
   const [shopForm, setShopForm] = useState(initialShopForm);
+  const [editingShopId, setEditingShopId] = useState<string | null>(null);
+  const [updatingShop, setUpdatingShop] = useState(false);
+  const [shopEditForm, setShopEditForm] = useState<ReturnType<typeof toShopForm> | null>(null);
   const [staffForm, setStaffForm] = useState({
     name: "",
     loginId: "",
     password: "",
     shopId: shops[0]?.id ?? "",
   });
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
+  const [updatingStaff, setUpdatingStaff] = useState(false);
+  const [staffEditForm, setStaffEditForm] = useState<ReturnType<typeof toStaffForm> | null>(null);
 
   const handleCreateShop = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -115,7 +181,14 @@ export default function AdminManagementPanel({
       const response = await fetch("/api/admin/shops", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(shopForm),
+        body: JSON.stringify({
+          ...shopForm,
+          ...SHOP_TYPE_THEMES[shopForm.shopType],
+          paymentQrImageUrl: "",
+          bankName: "",
+          bankAccountName: "",
+          bankAccountNumber: "",
+        }),
       });
 
       const data = (await response.json()) as {
@@ -176,7 +249,88 @@ export default function AdminManagementPanel({
     }
   };
 
-  const uploadShopAsset = async (file: File, kind: "hero" | "logo" | "payment-qr") => {
+  const startEditShop = (shop: ShopSummary) => {
+    setEditingShopId(shop.id);
+    setShopEditForm(toShopForm(shop));
+  };
+
+  const handleUpdateShop = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!editingShopId || !shopEditForm) return;
+
+    setUpdatingShop(true);
+
+    try {
+      const response = await fetch(`/api/admin/shops/${editingShopId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...shopEditForm,
+          ...SHOP_TYPE_THEMES[shopEditForm.shopType],
+          paymentQrImageUrl: "",
+          bankName: "",
+          bankAccountName: "",
+          bankAccountNumber: "",
+        }),
+      });
+
+      const data = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        toast.error(data.error ?? "更新店铺失败");
+        return;
+      }
+
+      toast.success("店铺资料已更新");
+      setEditingShopId(null);
+      setShopEditForm(null);
+      router.refresh();
+    } catch {
+      toast.error("网络错误，请稍后重试");
+    } finally {
+      setUpdatingShop(false);
+    }
+  };
+
+  const startEditStaff = (profile: StaffSummary) => {
+    setEditingStaffId(profile.id);
+    setStaffEditForm(toStaffForm(profile));
+  };
+
+  const handleUpdateStaff = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!editingStaffId || !staffEditForm) return;
+
+    setUpdatingStaff(true);
+
+    try {
+      const response = await fetch(`/api/admin/staff/${editingStaffId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(staffEditForm),
+      });
+
+      const data = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        toast.error(data.error ?? "更新员工账号失败");
+        return;
+      }
+
+      toast.success("员工账号已更新");
+      setEditingStaffId(null);
+      setStaffEditForm(null);
+      router.refresh();
+    } catch {
+      toast.error("网络错误，请稍后重试");
+    } finally {
+      setUpdatingStaff(false);
+    }
+  };
+
+  const uploadShopAsset = async (file: File, kind: "hero" | "logo") => {
     const slugBase = shopForm.slug.trim() || shopForm.name.trim() || "shop";
     const normalizedSlug = slugBase
       .toLowerCase()
@@ -185,17 +339,12 @@ export default function AdminManagementPanel({
       .replace(/[\s_]+/g, "-")
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "") || "shop";
-    const folder =
-      kind === "payment-qr"
-        ? `shops/${normalizedSlug}/payment`
-        : `shops/${normalizedSlug}/${kind}`;
+    const folder = `shops/${normalizedSlug}/${kind}`;
 
     const setUploading =
       kind === "hero"
         ? setUploadingHero
-        : kind === "logo"
-          ? setUploadingLogo
-          : setUploadingPaymentQr;
+        : setUploadingLogo;
     setUploading(true);
 
     try {
@@ -247,10 +396,7 @@ export default function AdminManagementPanel({
           };
         }
 
-        return {
-          ...current,
-          paymentQrImageUrl: uploadUrlData.publicUrl ?? "",
-        };
+        return current;
       });
 
       toast.success(kind === "hero" ? "首页图片已上传" : "Logo 已上传");
@@ -307,6 +453,19 @@ export default function AdminManagementPanel({
               </div>
 
               <div>
+                <Label htmlFor="shop-domain">产品店铺域名</Label>
+                <Input
+                  id="shop-domain"
+                  className="mt-2"
+                  value={shopForm.domain}
+                  onChange={(event) =>
+                    setShopForm((current) => ({ ...current, domain: event.target.value }))
+                  }
+                  placeholder="例如：example.com"
+                />
+              </div>
+
+              <div>
                 <Label htmlFor="shop-status">状态</Label>
                 <select
                   id="shop-status"
@@ -329,12 +488,14 @@ export default function AdminManagementPanel({
                 <select
                   id="shop-type"
                   value={shopForm.shopType}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    const shopType = event.target.value as "PRODUCT" | "SERVICE" | "HYBRID";
                     setShopForm((current) => ({
                       ...current,
-                      shopType: event.target.value as "PRODUCT" | "SERVICE" | "HYBRID",
-                    }))
-                  }
+                      shopType,
+                      checkoutMode: shopType === "SERVICE" ? "BOOKING" : "DELIVERY",
+                    }));
+                  }}
                   className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value="PRODUCT">PRODUCT</option>
@@ -382,6 +543,24 @@ export default function AdminManagementPanel({
                   <option value="DELIVERY">DELIVERY</option>
                   <option value="BOOKING">BOOKING</option>
                   <option value="FLEXIBLE">FLEXIBLE</option>
+                </select>
+              </div>
+
+              <div>
+                <Label htmlFor="category-mode">分类结构</Label>
+                <select
+                  id="category-mode"
+                  value={shopForm.categoryMode}
+                  onChange={(event) =>
+                    setShopForm((current) => ({
+                      ...current,
+                      categoryMode: event.target.value as "FLAT" | "NESTED",
+                    }))
+                  }
+                  className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="FLAT">FLAT - 只有分类</option>
+                  <option value="NESTED">NESTED - 分类和子分类</option>
                 </select>
               </div>
 
@@ -554,98 +733,6 @@ export default function AdminManagementPanel({
               </div>
 
               <div className="md:col-span-2">
-                <Label htmlFor="shop-payment-qr">收款二维码 URL</Label>
-                <Input
-                  id="shop-payment-qr"
-                  className="mt-2"
-                  value={shopForm.paymentQrImageUrl}
-                  onChange={(event) =>
-                    setShopForm((current) => ({
-                      ...current,
-                      paymentQrImageUrl: event.target.value,
-                    }))
-                  }
-                  placeholder="https://..."
-                />
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          void uploadShopAsset(file, "payment-qr");
-                        }
-                        event.currentTarget.value = "";
-                      }}
-                    />
-                    {uploadingPaymentQr ? "上传中..." : "上传收款二维码"}
-                  </label>
-                  {shopForm.paymentQrImageUrl ? (
-                    <div className="relative h-20 w-20 overflow-hidden rounded-md border bg-muted">
-                      <Image
-                        src={shopForm.paymentQrImageUrl}
-                        alt="Payment QR preview"
-                        fill
-                        className="object-cover"
-                        sizes="80px"
-                      />
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="shop-bank-name">银行名称</Label>
-                <Input
-                  id="shop-bank-name"
-                  className="mt-2"
-                  value={shopForm.bankName}
-                  onChange={(event) =>
-                    setShopForm((current) => ({
-                      ...current,
-                      bankName: event.target.value,
-                    }))
-                  }
-                  placeholder="例如：Maybank"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="shop-bank-account-name">账户名称</Label>
-                <Input
-                  id="shop-bank-account-name"
-                  className="mt-2"
-                  value={shopForm.bankAccountName}
-                  onChange={(event) =>
-                    setShopForm((current) => ({
-                      ...current,
-                      bankAccountName: event.target.value,
-                    }))
-                  }
-                  placeholder="例如：Wanshitong Sdn Bhd"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <Label htmlFor="shop-bank-account-number">银行账号</Label>
-                <Input
-                  id="shop-bank-account-number"
-                  className="mt-2"
-                  value={shopForm.bankAccountNumber}
-                  onChange={(event) =>
-                    setShopForm((current) => ({
-                      ...current,
-                      bankAccountNumber: event.target.value,
-                    }))
-                  }
-                  placeholder="例如：1234567890"
-                />
-              </div>
-
-              <div className="md:col-span-2">
                 <Label htmlFor="shop-description">店铺描述</Label>
                 <Textarea
                   id="shop-description"
@@ -659,70 +746,6 @@ export default function AdminManagementPanel({
                   }
                   placeholder="简短介绍店铺卖什么、面向谁。"
                   rows={4}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="theme-primary">主题主色</Label>
-                <Input
-                  id="theme-primary"
-                  className="mt-2"
-                  value={shopForm.themePrimary}
-                  onChange={(event) =>
-                    setShopForm((current) => ({
-                      ...current,
-                      themePrimary: event.target.value,
-                    }))
-                  }
-                  placeholder="例如：#991b1b"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="theme-secondary">主题次色</Label>
-                <Input
-                  id="theme-secondary"
-                  className="mt-2"
-                  value={shopForm.themeSecondary}
-                  onChange={(event) =>
-                    setShopForm((current) => ({
-                      ...current,
-                      themeSecondary: event.target.value,
-                    }))
-                  }
-                  placeholder="例如：#f59e0b"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="theme-accent">强调色</Label>
-                <Input
-                  id="theme-accent"
-                  className="mt-2"
-                  value={shopForm.themeAccent}
-                  onChange={(event) =>
-                    setShopForm((current) => ({
-                      ...current,
-                      themeAccent: event.target.value,
-                    }))
-                  }
-                  placeholder="例如：#ef4444"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="theme-surface">背景/表面色</Label>
-                <Input
-                  id="theme-surface"
-                  className="mt-2"
-                  value={shopForm.themeSurface}
-                  onChange={(event) =>
-                    setShopForm((current) => ({
-                      ...current,
-                      themeSurface: event.target.value,
-                    }))
-                  }
-                  placeholder="例如：#fff7ed"
                 />
               </div>
 
@@ -751,15 +774,25 @@ export default function AdminManagementPanel({
                       <p className="font-semibold text-gray-900">{shop.name}</p>
                       <p className="text-sm text-gray-500">/shops/{shop.slug}</p>
                     </div>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        shop.status === "ACTIVE"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-200 text-gray-700"
-                      }`}
-                    >
-                      {shop.status}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          shop.status === "ACTIVE"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-gray-200 text-gray-700"
+                        }`}
+                      >
+                        {shop.status}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => startEditShop(shop)}
+                      >
+                        编辑
+                      </Button>
+                    </div>
                   </div>
 
                   {shop.description ? (
@@ -768,8 +801,10 @@ export default function AdminManagementPanel({
 
                   <div className="mt-3 grid gap-2 text-sm text-gray-600 sm:grid-cols-2 xl:grid-cols-4">
                     <p>店铺类型：{shop.shopType}</p>
+                    <p>域名：{shop.domain ?? "未设置"}</p>
                     <p>经营归属：{shop.ownershipType}</p>
                     <p>结算模式：{shop.checkoutMode}</p>
+                    <p>分类结构：{shop.categoryMode}</p>
                     <p>WhatsApp：{shop.whatsappPhone ?? "未设置"}</p>
                     <p>
                       Telegram：
@@ -777,17 +812,284 @@ export default function AdminManagementPanel({
                         ? `@${shop.telegramUsername.replace(/^@+/, "")}`
                         : "未设置"}
                     </p>
-                    <p>主题主色：{shop.themePrimary ?? "未设置"}</p>
                     <p>首页样式：{shop.homepageVariant ?? "默认"}</p>
-                    <p>收款二维码：{shop.paymentQrImageUrl ? "已设置" : "未设置"}</p>
-                    <p>银行名称：{shop.bankName ?? "未设置"}</p>
-                    <p>账户名称：{shop.bankAccountName ?? "未设置"}</p>
-                    <p>银行账号：{shop.bankAccountNumber ?? "未设置"}</p>
                     <p>商品：{shop._count.products}</p>
                     <p>分类：{shop._count.categories}</p>
                     <p>订单：{shop._count.orders}</p>
                     <p>员工：{shop._count.staffProfiles}</p>
                   </div>
+
+                  {editingShopId === shop.id && shopEditForm ? (
+                    <form
+                      onSubmit={handleUpdateShop}
+                      className="mt-4 grid gap-3 rounded-xl border bg-white p-4 md:grid-cols-2"
+                    >
+                      <div className="md:col-span-2">
+                        <Label htmlFor={`edit-shop-name-${shop.id}`}>店铺名称</Label>
+                        <Input
+                          id={`edit-shop-name-${shop.id}`}
+                          className="mt-2"
+                          value={shopEditForm.name}
+                          onChange={(event) =>
+                            setShopEditForm((current) =>
+                              current ? { ...current, name: event.target.value } : current,
+                            )
+                          }
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`edit-shop-slug-${shop.id}`}>店铺 slug</Label>
+                        <Input
+                          id={`edit-shop-slug-${shop.id}`}
+                          className="mt-2"
+                          value={shopEditForm.slug}
+                          onChange={(event) =>
+                            setShopEditForm((current) =>
+                              current ? { ...current, slug: event.target.value } : current,
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`edit-shop-domain-${shop.id}`}>产品店铺域名</Label>
+                        <Input
+                          id={`edit-shop-domain-${shop.id}`}
+                          className="mt-2"
+                          value={shopEditForm.domain}
+                          onChange={(event) =>
+                            setShopEditForm((current) =>
+                              current ? { ...current, domain: event.target.value } : current,
+                            )
+                          }
+                          placeholder="例如：example.com"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`edit-shop-status-${shop.id}`}>状态</Label>
+                        <select
+                          id={`edit-shop-status-${shop.id}`}
+                          value={shopEditForm.status}
+                          onChange={(event) =>
+                            setShopEditForm((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    status: event.target.value as "ACTIVE" | "INACTIVE",
+                                  }
+                                : current,
+                            )
+                          }
+                          className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="ACTIVE">ACTIVE</option>
+                          <option value="INACTIVE">INACTIVE</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`edit-shop-type-${shop.id}`}>店铺类型</Label>
+                        <select
+                          id={`edit-shop-type-${shop.id}`}
+                          value={shopEditForm.shopType}
+                          onChange={(event) => {
+                            const shopType = event.target.value as "PRODUCT" | "SERVICE" | "HYBRID";
+                            setShopEditForm((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    shopType,
+                                    checkoutMode: shopType === "SERVICE" ? "BOOKING" : "DELIVERY",
+                                  }
+                                : current,
+                            );
+                          }}
+                          className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="PRODUCT">PRODUCT</option>
+                          <option value="SERVICE">SERVICE</option>
+                          <option value="HYBRID">HYBRID</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`edit-checkout-mode-${shop.id}`}>结算模式</Label>
+                        <select
+                          id={`edit-checkout-mode-${shop.id}`}
+                          value={shopEditForm.checkoutMode}
+                          onChange={(event) =>
+                            setShopEditForm((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    checkoutMode: event.target.value as "DELIVERY" | "BOOKING" | "FLEXIBLE",
+                                  }
+                                : current,
+                            )
+                          }
+                          className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="DELIVERY">DELIVERY</option>
+                          <option value="BOOKING">BOOKING</option>
+                          <option value="FLEXIBLE">FLEXIBLE</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`edit-category-mode-${shop.id}`}>分类结构</Label>
+                        <select
+                          id={`edit-category-mode-${shop.id}`}
+                          value={shopEditForm.categoryMode}
+                          onChange={(event) =>
+                            setShopEditForm((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    categoryMode: event.target.value as "FLAT" | "NESTED",
+                                  }
+                                : current,
+                            )
+                          }
+                          className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="FLAT">FLAT - 只有分类</option>
+                          <option value="NESTED">NESTED - 分类和子分类</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`edit-hero-title-${shop.id}`}>首页主标题</Label>
+                        <Input
+                          id={`edit-hero-title-${shop.id}`}
+                          className="mt-2"
+                          value={shopEditForm.heroTitle}
+                          onChange={(event) =>
+                            setShopEditForm((current) =>
+                              current ? { ...current, heroTitle: event.target.value } : current,
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`edit-hero-subtitle-${shop.id}`}>首页副标题</Label>
+                        <Input
+                          id={`edit-hero-subtitle-${shop.id}`}
+                          className="mt-2"
+                          value={shopEditForm.heroSubtitle}
+                          onChange={(event) =>
+                            setShopEditForm((current) =>
+                              current ? { ...current, heroSubtitle: event.target.value } : current,
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <Label htmlFor={`edit-hero-url-${shop.id}`}>首页图片 URL</Label>
+                        <Input
+                          id={`edit-hero-url-${shop.id}`}
+                          className="mt-2"
+                          value={shopEditForm.heroImageUrl}
+                          onChange={(event) =>
+                            setShopEditForm((current) =>
+                              current ? { ...current, heroImageUrl: event.target.value } : current,
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`edit-logo-url-${shop.id}`}>店铺 Logo URL</Label>
+                        <Input
+                          id={`edit-logo-url-${shop.id}`}
+                          className="mt-2"
+                          value={shopEditForm.logoUrl}
+                          onChange={(event) =>
+                            setShopEditForm((current) =>
+                              current ? { ...current, logoUrl: event.target.value } : current,
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`edit-homepage-variant-${shop.id}`}>首页样式代号</Label>
+                        <Input
+                          id={`edit-homepage-variant-${shop.id}`}
+                          className="mt-2"
+                          value={shopEditForm.homepageVariant}
+                          onChange={(event) =>
+                            setShopEditForm((current) =>
+                              current ? { ...current, homepageVariant: event.target.value } : current,
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`edit-whatsapp-${shop.id}`}>店铺 WhatsApp 号码</Label>
+                        <Input
+                          id={`edit-whatsapp-${shop.id}`}
+                          className="mt-2"
+                          value={shopEditForm.whatsappPhone}
+                          onChange={(event) =>
+                            setShopEditForm((current) =>
+                              current ? { ...current, whatsappPhone: event.target.value } : current,
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`edit-telegram-${shop.id}`}>店铺 Telegram 用户名</Label>
+                        <Input
+                          id={`edit-telegram-${shop.id}`}
+                          className="mt-2"
+                          value={shopEditForm.telegramUsername}
+                          onChange={(event) =>
+                            setShopEditForm((current) =>
+                              current ? { ...current, telegramUsername: event.target.value } : current,
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <Label htmlFor={`edit-description-${shop.id}`}>店铺描述</Label>
+                        <Textarea
+                          id={`edit-description-${shop.id}`}
+                          className="mt-2"
+                          value={shopEditForm.description}
+                          onChange={(event) =>
+                            setShopEditForm((current) =>
+                              current ? { ...current, description: event.target.value } : current,
+                            )
+                          }
+                          rows={3}
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 md:col-span-2">
+                        <Button type="submit" disabled={updatingShop}>
+                          {updatingShop ? "保存中..." : "保存店铺"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingShopId(null);
+                            setShopEditForm(null);
+                          }}
+                        >
+                          取消
+                        </Button>
+                      </div>
+                    </form>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -899,29 +1201,144 @@ export default function AdminManagementPanel({
                     key={profile.id}
                     className="rounded-xl border border-gray-200 bg-gray-50 p-4"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-gray-900">
-                          {profile.user.name ?? "未命名员工"}
+	                    <div className="flex items-start justify-between gap-3">
+	                      <div>
+	                        <p className="font-semibold text-gray-900">
+	                          {profile.user.name ?? "未命名员工"}
                         </p>
                         <p className="text-sm text-gray-500">
                           登录 ID：{profile.user.phone}
                         </p>
                         <p className="mt-1 text-sm text-gray-600">
-                          店铺：{profile.shop.name}
-                        </p>
-                      </div>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          profile.isActive
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-200 text-gray-700"
-                        }`}
-                      >
-                        {profile.isActive ? "ACTIVE" : "INACTIVE"}
-                      </span>
-                    </div>
-                  </div>
+	                          店铺：{profile.shop.name}
+	                        </p>
+	                      </div>
+	                      <div className="flex items-center gap-2">
+	                        <span
+	                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+	                            profile.isActive
+	                              ? "bg-green-100 text-green-700"
+	                              : "bg-gray-200 text-gray-700"
+	                          }`}
+	                        >
+	                          {profile.isActive ? "ACTIVE" : "INACTIVE"}
+	                        </span>
+	                        <Button
+	                          type="button"
+	                          size="sm"
+	                          variant="outline"
+	                          onClick={() => startEditStaff(profile)}
+	                        >
+	                          编辑
+	                        </Button>
+	                      </div>
+	                    </div>
+
+	                    {editingStaffId === profile.id && staffEditForm ? (
+	                      <form
+	                        onSubmit={handleUpdateStaff}
+	                        className="mt-4 space-y-3 rounded-xl border bg-white p-4"
+	                      >
+	                        <div>
+	                          <Label htmlFor={`edit-staff-shop-${profile.id}`}>所属店铺</Label>
+	                          <select
+	                            id={`edit-staff-shop-${profile.id}`}
+	                            value={staffEditForm.shopId}
+	                            onChange={(event) =>
+	                              setStaffEditForm((current) =>
+	                                current ? { ...current, shopId: event.target.value } : current,
+	                              )
+	                            }
+	                            className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+	                            required
+	                          >
+	                            {shops.map((shop) => (
+	                              <option key={shop.id} value={shop.id}>
+	                                {shop.name} ({shop.slug})
+	                              </option>
+	                            ))}
+	                          </select>
+	                        </div>
+
+	                        <div>
+	                          <Label htmlFor={`edit-staff-name-${profile.id}`}>员工姓名</Label>
+	                          <Input
+	                            id={`edit-staff-name-${profile.id}`}
+	                            className="mt-2"
+	                            value={staffEditForm.name}
+	                            onChange={(event) =>
+	                              setStaffEditForm((current) =>
+	                                current ? { ...current, name: event.target.value } : current,
+	                              )
+	                            }
+	                            required
+	                          />
+	                        </div>
+
+	                        <div>
+	                          <Label htmlFor={`edit-staff-login-${profile.id}`}>员工登录 ID</Label>
+	                          <Input
+	                            id={`edit-staff-login-${profile.id}`}
+	                            className="mt-2"
+	                            value={staffEditForm.loginId}
+	                            onChange={(event) =>
+	                              setStaffEditForm((current) =>
+	                                current ? { ...current, loginId: event.target.value } : current,
+	                              )
+	                            }
+	                            required
+	                          />
+	                        </div>
+
+	                        <div>
+	                          <Label htmlFor={`edit-staff-password-${profile.id}`}>
+	                            新密码（不改就留空）
+	                          </Label>
+	                          <Input
+	                            id={`edit-staff-password-${profile.id}`}
+	                            className="mt-2"
+	                            type="password"
+	                            value={staffEditForm.password}
+	                            onChange={(event) =>
+	                              setStaffEditForm((current) =>
+	                                current ? { ...current, password: event.target.value } : current,
+	                              )
+	                            }
+	                            placeholder="不需要改密码就留空"
+	                          />
+	                        </div>
+
+	                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+	                          <input
+	                            type="checkbox"
+	                            checked={staffEditForm.isActive}
+	                            onChange={(event) =>
+	                              setStaffEditForm((current) =>
+	                                current ? { ...current, isActive: event.target.checked } : current,
+	                              )
+	                            }
+	                          />
+	                          启用这个员工账号
+	                        </label>
+
+	                        <div className="flex flex-wrap gap-2">
+	                          <Button type="submit" disabled={updatingStaff}>
+	                            {updatingStaff ? "保存中..." : "保存员工"}
+	                          </Button>
+	                          <Button
+	                            type="button"
+	                            variant="outline"
+	                            onClick={() => {
+	                              setEditingStaffId(null);
+	                              setStaffEditForm(null);
+	                            }}
+	                          >
+	                            取消
+	                          </Button>
+	                        </div>
+	                      </form>
+	                    ) : null}
+	                  </div>
                 ))
               )}
             </div>

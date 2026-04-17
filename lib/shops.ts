@@ -179,6 +179,7 @@ export const VALID_ORDER_STATUSES = [
   "SHIPPED",
   "RECEIVED",
   "CANCELLED",
+  "REFUND",
 ] as const;
 
 export function isValidOrderStatus(value: string | null): value is OrderStatus {

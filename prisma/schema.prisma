@@ -22,41 +22,43 @@ model User {
   addresses               Address[]
   carts                   Cart[]
   orders                  Order[]
-  assignedOrders          Order[]         @relation("AssignedStaffOrders")
+  assignedOrders          Order[]        @relation("AssignedStaffOrders")
   staffProfiles           StaffProfile[]
 }
 
 model Shop {
-  id               String         @id @default(uuid())
-  name             String
-  slug             String         @unique
-  description      String?
-  heroTitle        String?
-  heroSubtitle     String?
-  heroImageUrl     String?
-  status           ShopStatus     @default(ACTIVE)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  whatsappPhone    String?
-  telegramUsername String?
-  shopType         ShopType       @default(PRODUCT)
-  ownershipType    OwnershipType  @default(MARKETPLACE)
-  checkoutMode     CheckoutMode   @default(DELIVERY)
-  themePrimary     String?
-  themeSecondary   String?
-  themeAccent      String?
-  themeSurface     String?
-  logoUrl          String?
-  homepageVariant  String?
+  id                String         @id @default(uuid())
+  name              String
+  slug              String         @unique
+  domain            String?        @unique
+  description       String?
+  heroTitle         String?
+  heroSubtitle      String?
+  heroImageUrl      String?
+  status            ShopStatus     @default(ACTIVE)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  whatsappPhone     String?
+  telegramUsername  String?
+  shopType          ShopType       @default(PRODUCT)
+  ownershipType     OwnershipType  @default(MARKETPLACE)
+  checkoutMode      CheckoutMode   @default(DELIVERY)
+  categoryMode      CategoryMode   @default(FLAT)
+  themePrimary      String?
+  themeSecondary    String?
+  themeAccent       String?
+  themeSurface      String?
+  logoUrl           String?
+  homepageVariant   String?
   paymentQrImageUrl String?
-  bankName         String?
-  bankAccountName  String?
+  bankName          String?
+  bankAccountName   String?
   bankAccountNumber String?
-  carts            Cart[]
-  categories       Category[]
-  orders           Order[]
-  products         Product[]
-  staffProfiles    StaffProfile[]
+  carts             Cart[]
+  categories        Category[]
+  orders            Order[]
+  products          Product[]
+  staffProfiles     StaffProfile[]
 }
 
 model StaffProfile {
@@ -92,44 +94,49 @@ model Address {
 }
 
 model Category {
-  id        String    @id @default(uuid())
+  id        String     @id @default(uuid())
   name      String
-  createdAt DateTime  @default(now())
+  slug      String?
+  createdAt DateTime   @default(now())
   shopId    String
-  updatedAt DateTime  @updatedAt
-  shop      Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  parentId  String?
+  sortOrder Int        @default(0)
+  updatedAt DateTime   @updatedAt
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Category[] @relation("CategoryTree")
+  shop      Shop       @relation(fields: [shopId], references: [id], onDelete: Cascade)
   products  Product[]
 
-  @@unique([shopId, name])
   @@index([shopId])
+  @@index([shopId, parentId, sortOrder])
 }
 
 model Product {
-  id          String      @id @default(uuid())
-  name        String
-  description String?
-  price       Decimal     @db.Decimal(10, 2)
-  costPrice   Decimal?    @db.Decimal(10, 2)
-  stock       Int         @default(0)
-  imageUrl    String?
-  status      Boolean     @default(true)
-  categoryId  String
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  attributes  Json?
-  shopId      String
-  itemType    ItemType    @default(PHYSICAL)
-  fulfillmentType FulfillmentType @default(DELIVERY)
-  requiresScheduling Boolean @default(false)
-  durationMinutes Int?
-  minAdvanceHours Int?
-  maxAdvanceDays Int?
-  requiresAddress Boolean @default(true)
-  requiresContact Boolean @default(true)
-  cartItems   CartItem[]
-  orderItems  OrderItem[]
-  category    Category    @relation(fields: [categoryId], references: [id])
-  shop        Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  id                 String          @id @default(uuid())
+  name               String
+  description        String?
+  price              Decimal         @db.Decimal(10, 2)
+  costPrice          Decimal?        @db.Decimal(10, 2)
+  stock              Int             @default(0)
+  imageUrl           String?
+  status             Boolean         @default(true)
+  categoryId         String
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  attributes         Json?
+  shopId             String
+  itemType           ItemType        @default(PHYSICAL)
+  fulfillmentType    FulfillmentType @default(DELIVERY)
+  requiresScheduling Boolean         @default(false)
+  durationMinutes    Int?
+  minAdvanceHours    Int?
+  maxAdvanceDays     Int?
+  requiresAddress    Boolean         @default(true)
+  requiresContact    Boolean         @default(true)
+  cartItems          CartItem[]
+  orderItems         OrderItem[]
+  category           Category        @relation(fields: [categoryId], references: [id])
+  shop               Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@index([shopId, status])
   @@index([shopId, categoryId])
@@ -150,80 +157,80 @@ model Cart {
 }
 
 model CartItem {
-  id        String   @id @default(uuid())
-  cartId    String
-  productId String
-  quantity  Int      @default(1)
-  slotKey   String?
+  id             String    @id @default(uuid())
+  cartId         String
+  productId      String
+  quantity       Int       @default(1)
+  slotKey        String?
   scheduledStart DateTime?
-  scheduledEnd DateTime?
-  meta      Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  scheduledEnd   DateTime?
+  meta           Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  cart           Cart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product        Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([cartId, productId])
 }
 
 model Order {
-  id                      String         @id @default(uuid())
-  userId                  String?
-  guestSession            String?
-  status                  OrderStatus    @default(VERIFYING)
-  totalAmount             Decimal        @db.Decimal(10, 2)
-  flowType                OrderFlowType  @default(DELIVERY)
-  customerName            String?
-  customerPhone           String?
-  notes                   String?
-  createdAt               DateTime       @default(now())
-  updatedAt               DateTime       @updatedAt
-  addressId               String?
-  deliveryCity            String?
-  deliveryCountry         String?
-  deliveryPhone           String?
-  deliveryPostcode        String?
-  deliveryRecipient       String?
-  deliveryState           String?
-  deliveryStreet          String?
-  telegramUsername        String?
-  preferredContactChannel ContactChannel @default(PHONE)
-  scheduledDate           DateTime?
-  scheduledStartTime      DateTime?
-  scheduledEndTime        DateTime?
-  serviceLocationType     ServiceLocationType?
-  serviceAddressText      String?
-  bookingReference        String?
-  paymentMethod           PaymentMethod?
-  paymentReceiptUrl       String?
+  id                       String               @id @default(uuid())
+  userId                   String?
+  guestSession             String?
+  status                   OrderStatus          @default(VERIFYING)
+  totalAmount              Decimal              @db.Decimal(10, 2)
+  flowType                 OrderFlowType        @default(DELIVERY)
+  customerName             String?
+  customerPhone            String?
+  notes                    String?
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  addressId                String?
+  deliveryCity             String?
+  deliveryCountry          String?
+  deliveryPhone            String?
+  deliveryPostcode         String?
+  deliveryRecipient        String?
+  deliveryState            String?
+  deliveryStreet           String?
+  telegramUsername         String?
+  preferredContactChannel  ContactChannel       @default(PHONE)
+  scheduledDate            DateTime?
+  scheduledStartTime       DateTime?
+  scheduledEndTime         DateTime?
+  serviceLocationType      ServiceLocationType?
+  serviceAddressText       String?
+  bookingReference         String?
+  paymentMethod            PaymentMethod?
+  paymentReceiptUrl        String?
   paymentReceiptUploadedAt DateTime?
-  assignedStaffUserId     String?
-  assignedToStaffAt       DateTime?
-  shopId                  String
-  address                 Address?       @relation(fields: [addressId], references: [id])
-  assignedStaff           User?          @relation("AssignedStaffOrders", fields: [assignedStaffUserId], references: [id])
-  shop                    Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  user                    User?          @relation(fields: [userId], references: [id])
-  items                   OrderItem[]
+  assignedStaffUserId      String?
+  assignedToStaffAt        DateTime?
+  shopId                   String
+  address                  Address?             @relation(fields: [addressId], references: [id])
+  assignedStaff            User?                @relation("AssignedStaffOrders", fields: [assignedStaffUserId], references: [id])
+  shop                     Shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user                     User?                @relation(fields: [userId], references: [id])
+  items                    OrderItem[]
 
   @@index([shopId, status])
   @@index([userId, createdAt])
 }
 
 model OrderItem {
-  id              String           @id @default(uuid())
-  orderId         String
-  productId       String
-  quantity        Int
-  unitPrice       Decimal          @db.Decimal(10, 2)
-  costPriceSnapshot Decimal?       @db.Decimal(10, 2)
-  itemType        ItemType?
-  fulfillmentType FulfillmentType?
-  scheduledDate   DateTime?
-  scheduledStart  DateTime?
-  scheduledEnd    DateTime?
-  order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product         Product          @relation(fields: [productId], references: [id])
+  id                String           @id @default(uuid())
+  orderId           String
+  productId         String
+  quantity          Int
+  unitPrice         Decimal          @db.Decimal(10, 2)
+  costPriceSnapshot Decimal?         @db.Decimal(10, 2)
+  itemType          ItemType?
+  fulfillmentType   FulfillmentType?
+  scheduledDate     DateTime?
+  scheduledStart    DateTime?
+  scheduledEnd      DateTime?
+  order             Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product           Product          @relation(fields: [productId], references: [id])
 }
 
 enum Role {
@@ -238,6 +245,7 @@ enum OrderStatus {
   SHIPPED
   RECEIVED
   CANCELLED
+  REFUND
 }
 
 enum ContactChannel {
@@ -265,6 +273,11 @@ enum CheckoutMode {
   DELIVERY
   BOOKING
   FLEXIBLE
+}
+
+enum CategoryMode {
+  FLAT
+  NESTED
 }
 
 enum ItemType {

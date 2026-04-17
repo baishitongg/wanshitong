@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { normalizeCategorySlug } from "@/lib/categories";
 import { prisma } from "@/lib/prisma";
 import { getCategoriesForShop } from "@/lib/commerce";
 import { getStaffShopContext } from "@/lib/shops";
@@ -24,16 +25,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "管理员请使用平台管理接口" }, { status: 400 });
     }
 
-    const body = (await req.json()) as { name?: string };
+    const body = (await req.json()) as { name?: string; parentId?: string | null };
     const name = body.name?.trim();
+    const parentId = body.parentId?.trim() || null;
 
     if (!name) {
       return NextResponse.json({ error: "分类名称不能为空" }, { status: 400 });
     }
 
+    if (parentId) {
+      const parent = await prisma.category.findFirst({
+        where: {
+          id: parentId,
+          shopId: context.shopId!,
+        },
+      });
+
+      if (!parent) {
+        return NextResponse.json({ error: "父分类不存在" }, { status: 400 });
+      }
+    }
+
     const existing = await prisma.category.findFirst({
       where: {
         shopId: context.shopId!,
+        parentId,
         name,
       },
     });
@@ -46,6 +62,8 @@ export async function POST(req: Request) {
       data: {
         shopId: context.shopId!,
         name,
+        slug: normalizeCategorySlug(name) || null,
+        parentId,
       },
     });
 

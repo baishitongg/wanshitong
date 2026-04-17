@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import AdminNav from "@/components/AdminNav";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Prisma, OrderStatus } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 type SessionUser = {
   role?: string;
@@ -170,16 +170,17 @@ export default async function AdminPage({ searchParams }: PageProps) {
   }
 
   if (status !== "ALL") {
-    const validStatuses: OrderStatus[] = [
+    const validStatuses = [
       "VERIFYING",
       "PROCESSING",
       "SHIPPED",
       "RECEIVED",
       "CANCELLED",
+      "REFUND",
     ];
 
-    if (validStatuses.includes(status as OrderStatus)) {
-      where.status = status as OrderStatus;
+    if (validStatuses.includes(status)) {
+      where.status = status as never;
     }
   }
 

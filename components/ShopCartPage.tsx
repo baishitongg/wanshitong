@@ -255,20 +255,31 @@ export default function ShopCartPage({
 
     setPlacing(true);
     try {
-      const nextParams = new URLSearchParams({
-        selected: selectedProductIds.join(","),
-        channel: selectedContactChannel,
+      const res = await fetch(`/api/shops/${shopSlug}/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: user?.name ?? null,
+          customerPhone: user?.phone ?? null,
+          telegramUsername: user?.telegramUsername ?? null,
+          preferredContactChannel: selectedContactChannel,
+          notes: notes.trim() || null,
+          addressId: requiresAddress ? selectedAddressId : null,
+          selectedProductIds,
+        }),
       });
+      const data = (await res.json()) as { id?: string; error?: string };
 
-      if (requiresAddress && selectedAddressId) {
-        nextParams.set("addressId", selectedAddressId);
+      if (!res.ok || !data.id) {
+        toast.error(data.error ?? "提交订单失败，请稍后重试");
+        return;
       }
 
-      if (notes.trim()) {
-        nextParams.set("notes", notes.trim());
-      }
-
-      router.push(`/shops/${shopSlug}/payment?${nextParams.toString()}`);
+      await fetchCart();
+      toast.success("订单已提交给店铺");
+      router.push(`/order-success?id=${data.id}&shop=${shopSlug}`);
+    } catch {
+      toast.error("网络错误，请稍后重试");
     } finally {
       setPlacing(false);
     }
@@ -586,7 +597,7 @@ export default function ShopCartPage({
               disabled={placing || selectedProductIds.length === 0 || (requiresAddress && !selectedAddressId)}
             >
               {placing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              前往付款
+              提交订单
             </Button>
 
             <Link

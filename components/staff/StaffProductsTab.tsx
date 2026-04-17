@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { Loader2, Package, Plus, Trash2, Upload } from "lucide-react";
 import ProductCard from "@/components/ProductCard";
@@ -25,7 +25,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import type { Category, OwnershipType, Product, ShopType } from "@/types";
+import type { Category, CategoryMode, OwnershipType, Product, ShopType } from "@/types";
+import { flattenCategoryTree } from "@/lib/categories";
 import {
   formatServiceDuration,
   normalizeServiceAttributes,
@@ -39,6 +40,7 @@ type StaffShopInfo = {
   slug: string;
   shopType: ShopType;
   ownershipType: OwnershipType;
+  categoryMode: CategoryMode;
   checkoutMode: string;
 };
 
@@ -93,12 +95,15 @@ export default function StaffProductsTab() {
   const [galleryUploading, setGalleryUploading] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryParentId, setNewCategoryParentId] = useState("ROOT");
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [form, setForm] = useState<ProductFormState>(buildEmptyProductForm());
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const isServiceShop = shop?.shopType === "SERVICE";
   const isSelfOperatedShop = shop?.ownershipType === "SELF_OPERATED";
+  const isNestedCategories = shop?.categoryMode === "NESTED";
+  const categoryOptions = useMemo(() => flattenCategoryTree(categories), [categories]);
 
   useEffect(() => {
     const load = async () => {
@@ -234,7 +239,12 @@ export default function StaffProductsTab() {
       const res = await fetch("/api/staff/shop/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newCategoryName.trim() }),
+        body: JSON.stringify({
+          name: newCategoryName.trim(),
+          parentId: isNestedCategories && newCategoryParentId !== "ROOT"
+            ? newCategoryParentId
+            : null,
+        }),
       });
 
       const data = (await res.json()) as Category | { error?: string };
@@ -248,6 +258,7 @@ export default function StaffProductsTab() {
       );
       setForm((current) => ({ ...current, categoryId: createdCategory.id }));
       setNewCategoryName("");
+      setNewCategoryParentId("ROOT");
       setCategoryDialogOpen(false);
       toast.success("分类创建成功");
     } catch (error) {
@@ -693,9 +704,14 @@ export default function StaffProductsTab() {
                   <SelectValue placeholder="请选择分类" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
+                  {categoryOptions.map((category) => (
+                    <SelectItem
+                      key={category.id}
+                      value={category.id}
+                      disabled={isNestedCategories && category.hasChildren}
+                    >
+                      {category.label}
+                      {isNestedCategories && category.hasChildren ? "（请选择子分类）" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -860,6 +876,28 @@ export default function StaffProductsTab() {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {isNestedCategories && (
+              <div className="space-y-1.5">
+                <Label>上级分类</Label>
+                <Select
+                  value={newCategoryParentId}
+                  onValueChange={setNewCategoryParentId}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="选择上级分类" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ROOT">无，作为一级分类</SelectItem>
+                    {categoryOptions.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label>分类名称</Label>
               <Input
@@ -876,6 +914,7 @@ export default function StaffProductsTab() {
               onClick={() => {
                 setCategoryDialogOpen(false);
                 setNewCategoryName("");
+                setNewCategoryParentId("ROOT");
               }}
             >
               取消

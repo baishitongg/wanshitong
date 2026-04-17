@@ -48,9 +48,6 @@ type NavbarProps = {
   hideCart?: boolean;
 };
 
-const SUPPORT_WHATSAPP = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP ?? "";
-const SUPPORT_TELEGRAM = process.env.NEXT_PUBLIC_SUPPORT_TELEGRAM ?? "";
-
 function buildWhatsAppLink(phone: string) {
   const normalized = phone.replace(/[^\d]/g, "");
   const text = encodeURIComponent("您好，我想咨询一下服务。");
@@ -79,26 +76,17 @@ export default function Navbar({
   const isShopContext = Boolean(shopSlug);
   const showCart = Boolean(shopSlug) && !hideCart;
   const guideHref = shopSlug ? buildShopHref(shopSlug, "/how-to-use") : null;
+  const supportLabel = shopName ?? "店铺客服";
   const totalItems = useMemo(
     () => items.reduce((sum, item) => sum + item.quantity, 0),
     [items],
   );
 
-  const whatsappHref = isShopContext
-    ? supportWhatsApp
-      ? buildWhatsAppLink(supportWhatsApp)
-      : null
-    : SUPPORT_WHATSAPP
-      ? buildWhatsAppLink(SUPPORT_WHATSAPP)
-      : null;
+  const whatsappHref =
+    isShopContext && supportWhatsApp ? buildWhatsAppLink(supportWhatsApp) : null;
 
-  const telegramHref = isShopContext
-    ? supportTelegram
-      ? buildTelegramLink(supportTelegram)
-      : null
-    : SUPPORT_TELEGRAM
-      ? buildTelegramLink(SUPPORT_TELEGRAM)
-      : null;
+  const telegramHref =
+    isShopContext && supportTelegram ? buildTelegramLink(supportTelegram) : null;
 
   const headerBackground = theme?.primary ?? "#7f1d1d";
   const headerBorder = theme ? withAlpha(theme.secondary, 0.35) : undefined;
@@ -133,18 +121,20 @@ export default function Navbar({
           </div>
 
           <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
-            <Link href="/" className="transition-colors hover:text-white" style={{ color: subtleText }}>
-              平台主页
-            </Link>
-
             {shopSlug && (
-              <Link
-                href={buildShopHref(shopSlug)}
-                className="transition-colors hover:text-white"
-                style={{ color: subtleText }}
-              >
-                店铺主页
-              </Link>
+              <>
+                <Link href="/" className="transition-colors hover:text-white" style={{ color: subtleText }}>
+                  平台主页
+                </Link>
+
+                <Link
+                  href={buildShopHref(shopSlug)}
+                  className="transition-colors hover:text-white"
+                  style={{ color: subtleText }}
+                >
+                  店铺主页
+                </Link>
+              </>
             )}
 
             {guideHref && (
@@ -157,7 +147,7 @@ export default function Navbar({
               </Link>
             )}
 
-            {(whatsappHref || telegramHref) && (
+            {isShopContext && (whatsappHref || telegramHref) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -179,7 +169,7 @@ export default function Navbar({
                         className="flex items-center gap-2"
                       >
                         <MessageCircle className="h-4 w-4 text-green-600" />
-                        WhatsApp 客服
+                        {supportLabel}
                       </a>
                     </DropdownMenuItem>
                   )}
@@ -193,7 +183,7 @@ export default function Navbar({
                         className="flex items-center gap-2"
                       >
                         <Send className="h-4 w-4 text-sky-600" />
-                        Telegram 客服
+                        {supportLabel}
                       </a>
                     </DropdownMenuItem>
                   )}
@@ -203,7 +193,7 @@ export default function Navbar({
           </nav>
 
           <div className="flex items-center gap-3 md:gap-6">
-            {(whatsappHref || telegramHref) && (
+            {isShopContext && (whatsappHref || telegramHref) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -218,12 +208,21 @@ export default function Navbar({
 
                 <DropdownMenuContent align="end" className="w-56">
                   {shopSlug && (
-                    <DropdownMenuItem asChild>
-                      <Link href={buildShopHref(shopSlug)} className="flex items-center gap-2">
-                        <Store className="h-4 w-4" />
-                        店铺主页
-                      </Link>
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/" className="flex items-center gap-2">
+                          <Store className="h-4 w-4" />
+                          平台主页
+                        </Link>
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem asChild>
+                        <Link href={buildShopHref(shopSlug)} className="flex items-center gap-2">
+                          <Store className="h-4 w-4" />
+                          店铺主页
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
                   )}
 
                   {guideHref && (
@@ -246,7 +245,7 @@ export default function Navbar({
                         className="flex items-center gap-2"
                       >
                         <MessageCircle className="h-4 w-4 text-green-600" />
-                        WhatsApp 客服
+                        {supportLabel}
                       </a>
                     </DropdownMenuItem>
                   )}
@@ -260,7 +259,7 @@ export default function Navbar({
                         className="flex items-center gap-2"
                       >
                         <Send className="h-4 w-4 text-sky-600" />
-                        Telegram 客服
+                        {supportLabel}
                       </a>
                     </DropdownMenuItem>
                   )}

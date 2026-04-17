@@ -104,11 +104,16 @@ function normalizeServicePackageOption(value: unknown) {
     return null;
   }
 
-  const rawPrice = typeof value.price === "number" ? value.price : Number(value.price);
+  const entry = value as {
+    price?: number | string;
+    durationMinutes?: number | string;
+  };
+
+  const rawPrice = typeof entry.price === "number" ? entry.price : Number(entry.price);
   const rawDuration =
-    typeof value.durationMinutes === "number"
-      ? value.durationMinutes
-      : Number(value.durationMinutes);
+    typeof entry.durationMinutes === "number"
+      ? entry.durationMinutes
+      : Number(entry.durationMinutes);
 
   if (!Number.isFinite(rawPrice) || rawPrice < 0 || !Number.isFinite(rawDuration) || rawDuration <= 0) {
     return null;

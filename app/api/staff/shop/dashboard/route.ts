@@ -16,6 +16,7 @@ export async function GET() {
             shopType: true,
             ownershipType: true,
             checkoutMode: true,
+            categoryMode: true,
           },
         })
       : null;

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { getCachedCategories, getCachedProducts } from "@/lib/queries";
+import { flattenCategoryTree } from "@/lib/categories";
 import { requireShopBySlug } from "@/lib/shops";
 import { resolveShopTheme, withAlpha } from "@/lib/shopTheme";
 import Navbar from "@/components/Navbar";
@@ -21,6 +22,7 @@ export default async function ShopHomePage({ params }: Props) {
     getCachedProducts(shopSlug),
     getCachedCategories(shopSlug),
   ]);
+  const categoryNav = flattenCategoryTree(categories);
 
   return (
     <div className="min-h-screen bg-background" style={{ backgroundColor: theme.surface }}>
@@ -47,8 +49,12 @@ export default async function ShopHomePage({ params }: Props) {
         />
         {shop.heroImageUrl ? (
           <div
-            className="absolute inset-0 bg-cover bg-center opacity-15"
-            style={{ backgroundImage: `url(${shop.heroImageUrl})` }}
+            className="pointer-events-none absolute inset-0 hidden bg-no-repeat opacity-15 md:block"
+            style={{
+              backgroundImage: `url(${shop.heroImageUrl})`,
+              backgroundPosition: "right 14% center",
+              backgroundSize: "46% auto",
+            }}
           />
         ) : null}
 
@@ -107,14 +113,14 @@ export default async function ShopHomePage({ params }: Props) {
                 分类
               </span>
 
-              {categories.map((cat) => (
+              {categoryNav.map((cat) => (
                 <Link
                   key={cat.id}
                   href={`/shops/${shop.slug}/category/${cat.id}`}
                   className="flex flex-shrink-0 items-center gap-0.5 whitespace-nowrap text-sm transition-colors"
                   style={{ color: theme.secondary }}
                 >
-                  {cat.name}
+                  {cat.label}
                   <ChevronRight className="h-3 w-3 opacity-40" />
                 </Link>
               ))}

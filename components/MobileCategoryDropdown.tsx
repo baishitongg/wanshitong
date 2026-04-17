@@ -3,11 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Grid2x2 } from "lucide-react";
+import { buildCategoryTree } from "@/lib/categories";
 import { buildShopHref } from "@/lib/shops";
 
 interface Category {
   id: string;
   name: string;
+  parentId?: string | null;
+  sortOrder?: number | null;
 }
 
 interface Props {
@@ -17,6 +20,7 @@ interface Props {
 
 export default function MobileCategoryDropdown({ shopSlug, categories }: Props) {
   const [open, setOpen] = useState(false);
+  const categoryTree = buildCategoryTree(categories);
 
   if (!categories.length) return null;
 
@@ -55,15 +59,31 @@ export default function MobileCategoryDropdown({ shopSlug, categories }: Props) 
               </Link>
 
               <div className="mt-1 grid grid-cols-1 gap-1">
-                {categories.map((cat) => (
-                  <Link
-                    key={cat.id}
-                    href={buildShopHref(shopSlug, `/category/${cat.id}`)}
-                    className="block rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted transition"
-                    onClick={() => setOpen(false)}
-                  >
-                    {cat.name}
-                  </Link>
+                {categoryTree.map((cat) => (
+                  <div key={cat.id}>
+                    <Link
+                      href={buildShopHref(shopSlug, `/category/${cat.id}`)}
+                      className="block rounded-xl px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition"
+                      onClick={() => setOpen(false)}
+                    >
+                      {cat.name}
+                    </Link>
+
+                    {cat.children.length > 0 && (
+                      <div className="ml-3 border-l border-border pl-2">
+                        {cat.children.map((child) => (
+                          <Link
+                            key={child.id}
+                            href={buildShopHref(shopSlug, `/category/${child.id}`)}
+                            className="block rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition"
+                            onClick={() => setOpen(false)}
+                          >
+                            {child.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>

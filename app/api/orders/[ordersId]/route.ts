@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateOrderStatus } from "@/lib/commerce";
-import type { OrderStatus } from "@prisma/client";
 
 type SessionUser = {
   id?: string;
@@ -16,15 +15,16 @@ type Params = {
 };
 
 type UpdateOrderBody = {
-  status?: OrderStatus;
+  status?: string;
 };
 
-const validStatuses: OrderStatus[] = [
+const validStatuses = [
   "VERIFYING",
   "PROCESSING",
   "SHIPPED",
   "RECEIVED",
   "CANCELLED",
+  "REFUND",
 ];
 
 export async function PATCH(req: Request, { params }: Params) {
@@ -49,7 +49,7 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 
   try {
-    const updatedOrder = await updateOrderStatus(ordersId, newStatus);
+    const updatedOrder = await updateOrderStatus(ordersId, newStatus as never);
     return NextResponse.json(updatedOrder);
   } catch (error) {
     const message = error instanceof Error ? error.message : "更新订单状态失败";

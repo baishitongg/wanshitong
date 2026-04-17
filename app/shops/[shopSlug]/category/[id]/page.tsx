@@ -4,6 +4,11 @@ import { Suspense } from "react";
 import { ChevronRight } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import ProductGridWithFilter from "@/components/ProductGridWithFilter";
+import {
+  flattenCategoryTree,
+  getCategoryAncestors,
+  getCategoryAndDescendantIds,
+} from "@/lib/categories";
 import { prisma } from "@/lib/prisma";
 import { requireShopBySlug, serializeProduct } from "@/lib/shops";
 import { resolveShopTheme, withAlpha } from "@/lib/shopTheme";
@@ -17,24 +22,28 @@ export default async function ShopCategoryPage({ params }: Props) {
   const shop = await requireShopBySlug(shopSlug);
   const theme = resolveShopTheme(shop);
 
-  const [category, allCategories, products] = await Promise.all([
-    prisma.category.findFirst({
-      where: { id, shopId: shop.id },
-    }),
-    prisma.category.findMany({
-      where: { shopId: shop.id },
-      orderBy: { name: "asc" },
-    }),
-    prisma.product.findMany({
-      where: { shopId: shop.id, categoryId: id, status: true },
-      include: { category: true },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
+  const allCategories = await prisma.category.findMany({
+    where: { shopId: shop.id },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+  });
+  const category = allCategories.find((item) => item.id === id);
 
   if (!category) notFound();
 
+  const categoryIds = getCategoryAndDescendantIds(allCategories, category.id);
+  const products = await prisma.product.findMany({
+    where: { shopId: shop.id, categoryId: { in: categoryIds }, status: true },
+    include: { category: true },
+    orderBy: { createdAt: "desc" },
+  });
   const serializedProducts = products.map(serializeProduct);
+  const categoryAncestors = getCategoryAncestors(allCategories, category.id);
+  const siblingParentId = category.parentId ?? null;
+  const visibleCategories = allCategories.filter((item) => item.parentId === siblingParentId);
+  const childCategories = allCategories.filter((item) => item.parentId === category.id);
+  const categoryNav = flattenCategoryTree(
+    childCategories.length > 0 ? childCategories : visibleCategories,
+  );
 
   return (
     <div className="min-h-screen bg-background" style={{ backgroundColor: theme.surface }}>
@@ -65,6 +74,17 @@ export default async function ShopCategoryPage({ params }: Props) {
             <Link href={`/shops/${shop.slug}`} className="transition-colors hover:text-white">
               {shop.name}
             </Link>
+            {categoryAncestors.map((ancestor) => (
+              <div key={ancestor.id} className="flex items-center gap-1.5">
+                <ChevronRight className="h-3.5 w-3.5" />
+                <Link
+                  href={`/shops/${shop.slug}/category/${ancestor.id}`}
+                  className="transition-colors hover:text-white"
+                >
+                  {ancestor.name}
+                </Link>
+              </div>
+            ))}
             <ChevronRight className="h-3.5 w-3.5" />
             <span className="font-medium text-white">{category.name}</span>
           </nav>
@@ -87,7 +107,7 @@ export default async function ShopCategoryPage({ params }: Props) {
               全部分类
             </Link>
 
-            {allCategories.map((cat) => (
+            {categoryNav.map((cat) => (
               <Link
                 key={cat.id}
                 href={`/shops/${shop.slug}/category/${cat.id}`}
@@ -105,7 +125,7 @@ export default async function ShopCategoryPage({ params }: Props) {
                       }
                 }
               >
-                {cat.name}
+                {cat.label}
               </Link>
             ))}
           </div>

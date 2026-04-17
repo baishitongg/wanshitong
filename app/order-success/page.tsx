@@ -14,9 +14,6 @@ interface Props {
   searchParams: SearchParams;
 }
 
-const PLATFORM_SUPPORT_WHATSAPP = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP ?? "";
-const PLATFORM_SUPPORT_TELEGRAM = process.env.NEXT_PUBLIC_SUPPORT_TELEGRAM ?? "";
-
 function buildWhatsAppHref(phone: string) {
   const normalized = phone.replace(/[^\d]/g, "");
   const text = encodeURIComponent("您好，我想咨询一下刚提交的订单。");
@@ -32,11 +29,11 @@ export default async function OrderSuccessPage({ searchParams }: Props) {
   const shop = shopSlug ? await requireShopBySlug(shopSlug).catch(() => null) : null;
   const theme = resolveShopTheme(shop);
   const backHref = shop ? `/shops/${shop.slug}` : "/";
-  const whatsappHref = PLATFORM_SUPPORT_WHATSAPP
-    ? buildWhatsAppHref(PLATFORM_SUPPORT_WHATSAPP)
+  const whatsappHref = shop?.whatsappPhone
+    ? buildWhatsAppHref(shop.whatsappPhone)
     : null;
-  const telegramHref = PLATFORM_SUPPORT_TELEGRAM
-    ? buildTelegramHref(PLATFORM_SUPPORT_TELEGRAM)
+  const telegramHref = shop?.telegramUsername
+    ? buildTelegramHref(shop.telegramUsername)
     : null;
 
   return (
@@ -45,8 +42,8 @@ export default async function OrderSuccessPage({ searchParams }: Props) {
         shopSlug={shop?.slug}
         shopName={shop?.name}
         theme={theme}
-        supportWhatsApp={PLATFORM_SUPPORT_WHATSAPP || null}
-        supportTelegram={PLATFORM_SUPPORT_TELEGRAM || null}
+        supportWhatsApp={shop?.whatsappPhone ?? null}
+        supportTelegram={shop?.telegramUsername ?? null}
       />
 
       <div className="container mx-auto max-w-3xl px-6 py-8 md:px-20">
@@ -74,7 +71,9 @@ export default async function OrderSuccessPage({ searchParams }: Props) {
 
           <div className="space-y-2">
             <h1 className="text-3xl font-bold text-foreground">下单成功!</h1>
-            <p className="text-muted-foreground">感谢您的购买，我们将尽快与您联系确认订单。</p>
+            <p className="text-muted-foreground">
+              订单已提交，商家会尽快通过您选择的联系方式提供付款方式并确认订单。
+            </p>
             {orderId && (
               <p className="mt-2 inline-block rounded-md bg-muted px-3 py-1.5 font-mono text-xs text-muted-foreground">
                 订单编号：{orderId}
@@ -90,9 +89,9 @@ export default async function OrderSuccessPage({ searchParams }: Props) {
                 backgroundColor: withAlpha(theme.accent, 0.08),
               }}
             >
-              <div className="mb-3 text-sm font-medium text-foreground">联系万事通客服</div>
+              <div className="mb-3 text-sm font-medium text-foreground">联系{shop?.name ?? "店铺"}客服</div>
               <div className="space-y-2 text-sm text-muted-foreground">
-                <p>如有疑问，可通过以下方式联系万事通客服：</p>
+                <p>如需确认订单或付款方式，可通过以下方式联系店铺客服：</p>
                 <div className="flex flex-wrap gap-3">
                   {whatsappHref && (
                     <a
