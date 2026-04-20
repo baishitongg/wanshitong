@@ -4,8 +4,8 @@ import { Suspense } from "react";
 import { ChevronRight } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import ProductGridWithFilter from "@/components/ProductGridWithFilter";
+import ShopCategoryNavigation from "@/components/ShopCategoryNavigation";
 import {
-  flattenCategoryTree,
   getCategoryAncestors,
   getCategoryAndDescendantIds,
 } from "@/lib/categories";
@@ -38,12 +38,6 @@ export default async function ShopCategoryPage({ params }: Props) {
   });
   const serializedProducts = products.map(serializeProduct);
   const categoryAncestors = getCategoryAncestors(allCategories, category.id);
-  const siblingParentId = category.parentId ?? null;
-  const visibleCategories = allCategories.filter((item) => item.parentId === siblingParentId);
-  const childCategories = allCategories.filter((item) => item.parentId === category.id);
-  const categoryNav = flattenCategoryTree(
-    childCategories.length > 0 ? childCategories : visibleCategories,
-  );
 
   return (
     <div className="min-h-screen bg-background" style={{ backgroundColor: theme.surface }}>
@@ -96,41 +90,14 @@ export default async function ShopCategoryPage({ params }: Props) {
         </div>
       </section>
 
-      <div className="sticky top-16 z-30 border-b border-border bg-background/95 backdrop-blur-sm">
-        <div className="container mx-auto max-w-5xl px-6 md:px-20">
-          <div className="flex items-center gap-2 overflow-x-auto py-3" style={{ scrollbarWidth: "none" }}>
-            <Link
-              href={`/shops/${shop.slug}`}
-              className="inline-flex flex-shrink-0 items-center rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground transition-all"
-              style={{ borderColor: withAlpha(theme.secondary, 0.22) }}
-            >
-              全部分类
-            </Link>
-
-            {categoryNav.map((cat) => (
-              <Link
-                key={cat.id}
-                href={`/shops/${shop.slug}/category/${cat.id}`}
-                className={`inline-flex flex-shrink-0 items-center rounded-full border px-3 py-1 text-xs font-medium transition-all ${
-                  cat.id === id ? "text-white" : "text-muted-foreground"
-                }`}
-                style={
-                  cat.id === id
-                    ? {
-                        backgroundColor: theme.secondary,
-                        borderColor: theme.secondary,
-                      }
-                    : {
-                        borderColor: withAlpha(theme.secondary, 0.2),
-                      }
-                }
-              >
-                {cat.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
+      <ShopCategoryNavigation
+        shopSlug={shop.slug}
+        categories={allCategories}
+        currentCategoryId={category.id}
+        theme={theme}
+        stickyDesktop
+        narrow
+      />
 
       <section className="container mx-auto max-w-5xl px-6 py-8 pb-20 md:px-20">
         <Suspense

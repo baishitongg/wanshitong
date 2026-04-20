@@ -1,13 +1,11 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { getCachedCategories, getCachedProducts } from "@/lib/queries";
-import { flattenCategoryTree } from "@/lib/categories";
 import { requireShopBySlug } from "@/lib/shops";
 import { resolveShopTheme, withAlpha } from "@/lib/shopTheme";
 import Navbar from "@/components/Navbar";
 import ProductGridWithFilter from "@/components/ProductGridWithFilter";
-import MobileCategoryDropdown from "@/components/MobileCategoryDropdown";
+import ShopCategoryNavigation from "@/components/ShopCategoryNavigation";
 
 interface Props {
   params: Promise<{ shopSlug: string }>;
@@ -22,7 +20,6 @@ export default async function ShopHomePage({ params }: Props) {
     getCachedProducts(shopSlug),
     getCachedCategories(shopSlug),
   ]);
-  const categoryNav = flattenCategoryTree(categories);
 
   return (
     <div className="min-h-screen bg-background" style={{ backgroundColor: theme.surface }}>
@@ -103,31 +100,11 @@ export default async function ShopHomePage({ params }: Props) {
         </div>
       </section>
 
-      {categories.length > 0 && (
-        <>
-          <MobileCategoryDropdown shopSlug={shop.slug} categories={categories} />
-
-          <div className="hidden border-b border-border bg-background md:block">
-            <div className="container mx-auto flex items-center gap-4 overflow-x-auto whitespace-nowrap px-6 py-3 no-scrollbar md:px-20">
-              <span className="flex-shrink-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                分类
-              </span>
-
-              {categoryNav.map((cat) => (
-                <Link
-                  key={cat.id}
-                  href={`/shops/${shop.slug}/category/${cat.id}`}
-                  className="flex flex-shrink-0 items-center gap-0.5 whitespace-nowrap text-sm transition-colors"
-                  style={{ color: theme.secondary }}
-                >
-                  {cat.label}
-                  <ChevronRight className="h-3 w-3 opacity-40" />
-                </Link>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
+      <ShopCategoryNavigation
+        shopSlug={shop.slug}
+        categories={categories}
+        theme={theme}
+      />
 
       <section id="products" className="container mx-auto px-6 py-10 pb-20 md:px-20">
         <Suspense
@@ -143,6 +120,7 @@ export default async function ShopHomePage({ params }: Props) {
             shopSlug={shop.slug}
             products={products}
             categories={categories}
+            hideCategoryPills
             theme={theme}
           />
         </Suspense>
