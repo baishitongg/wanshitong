@@ -31,6 +31,15 @@ export default async function AdminShopsPage() {
         },
       },
       partnerChannels: {
+        include: {
+          promotedShop: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+        },
         orderBy: { createdAt: "asc" },
       },
     },
@@ -75,7 +84,9 @@ export default async function AdminShopsPage() {
                 slug: partnerChannel.slug,
                 domain: partnerChannel.domain,
                 shopId: partnerChannel.shopId,
+                promotedShopId: partnerChannel.promotedShopId,
                 isActive: partnerChannel.isActive,
+                promotedShop: partnerChannel.promotedShop,
               })),
             };
           })}

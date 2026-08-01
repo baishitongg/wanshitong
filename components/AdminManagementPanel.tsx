@@ -47,7 +47,13 @@ type PartnerChannelSummary = {
   slug: string;
   domain: string | null;
   shopId: string;
+  promotedShopId: string | null;
   isActive: boolean;
+  promotedShop?: {
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
 };
 
 type StaffSummary = {
@@ -126,6 +132,16 @@ function toStaffForm(profile: StaffSummary) {
   };
 }
 
+function getDefaultPromotedShopId(shops: ShopSummary[]) {
+  return (
+    shops.find((shop) => /沐元|spa|按摩|massage/i.test(shop.name))?.id ??
+    shops.find((shop) => shop.shopType === "SERVICE")?.id ??
+    shops[1]?.id ??
+    shops[0]?.id ??
+    ""
+  );
+}
+
 export default function AdminManagementPanel({
   shops,
   staffProfiles,
@@ -146,6 +162,7 @@ export default function AdminManagementPanel({
     slug: "",
     domain: "",
     shopId: shops[0]?.id ?? "",
+    promotedShopId: getDefaultPromotedShopId(shops),
     isActive: true,
   });
   const [updatingPartnerId, setUpdatingPartnerId] = useState<string | null>(null);
@@ -248,6 +265,7 @@ export default function AdminManagementPanel({
           slug: partnerChannel.slug,
           domain: partnerChannel.domain,
           shopId: partnerChannel.shopId,
+          promotedShopId: partnerChannel.promotedShopId,
           isActive,
         }),
       });
@@ -505,7 +523,7 @@ export default function AdminManagementPanel({
           <section className="rounded-2xl border bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">新增店铺</h2>
             <p className="mt-1 text-sm text-gray-500">
-              管理员可以直接新增店铺资料，系统会写入 `Shop` 表并立刻出现在平台中。
+              管理员可以直接新增真实店铺资料，伙伴店铺和沐元 Spa 都使用同一套店铺系统。
             </p>
 
             <form onSubmit={handleCreateShop} className="mt-5 grid gap-4 md:grid-cols-2">
@@ -848,12 +866,12 @@ export default function AdminManagementPanel({
           <section className="rounded-2xl border bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">伙伴导流渠道</h2>
             <p className="mt-1 text-sm text-gray-500">
-              伙伴域名只负责导流，会显示所选择店铺的同一套商品、库存和下单系统。
+              伙伴域名会显示伙伴自己的店铺，以及一起展示的沐元 Spa 店铺。
             </p>
 
             <form onSubmit={handleCreatePartnerChannel} className="mt-5 grid gap-4 md:grid-cols-2">
               <div>
-                <Label htmlFor="partner-shop">导流到店铺</Label>
+                <Label htmlFor="partner-shop">伙伴自己的店铺</Label>
                 <select
                   id="partner-shop"
                   value={partnerForm.shopId}
@@ -861,6 +879,28 @@ export default function AdminManagementPanel({
                     setPartnerForm((current) => ({
                       ...current,
                       shopId: event.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  required
+                >
+                  {shops.map((shop) => (
+                    <option key={shop.id} value={shop.id}>
+                      {shop.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <Label htmlFor="partner-promoted-shop">一起展示的店铺</Label>
+                <select
+                  id="partner-promoted-shop"
+                  value={partnerForm.promotedShopId}
+                  onChange={(event) =>
+                    setPartnerForm((current) => ({
+                      ...current,
+                      promotedShopId: event.target.value,
                     }))
                   }
                   className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -903,7 +943,7 @@ export default function AdminManagementPanel({
                       slug: event.target.value,
                     }))
                   }
-                  placeholder="例如：one-them"
+                  placeholder="例如：partner-a"
                 />
               </div>
 
@@ -1020,6 +1060,9 @@ export default function AdminManagementPanel({
                             <p className="font-medium text-gray-900">{partnerChannel.name}</p>
                             <p className="text-gray-500">
                               {partnerChannel.domain ?? "未设置域名"} · {partnerChannel.slug}
+                            </p>
+                            <p className="text-gray-500">
+                              一起展示：{partnerChannel.promotedShop?.name ?? "未设置"}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">

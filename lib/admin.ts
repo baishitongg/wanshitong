@@ -251,6 +251,7 @@ export async function updateShop(input: UpdateShopInput) {
 
 type CreatePartnerChannelInput = {
   shopId: string;
+  promotedShopId?: string | null;
   name: string;
   slug?: string;
   domain?: string | null;
@@ -270,13 +271,29 @@ export async function createPartnerChannel(input: CreatePartnerChannelInput) {
     throw new Error("INVALID_PARTNER_CHANNEL_SLUG");
   }
 
-  const shop = await prisma.shop.findUnique({
-    where: { id: input.shopId },
-    select: { id: true },
-  });
+  const [shop, promotedShop] = await Promise.all([
+    prisma.shop.findUnique({
+      where: { id: input.shopId },
+      select: { id: true },
+    }),
+    input.promotedShopId
+      ? prisma.shop.findUnique({
+          where: { id: input.promotedShopId },
+          select: { id: true },
+        })
+      : null,
+  ]);
 
   if (!shop) {
     throw new Error("SHOP_NOT_FOUND");
+  }
+
+  if (!input.promotedShopId || !promotedShop) {
+    throw new Error("PROMOTED_SHOP_NOT_FOUND");
+  }
+
+  if (input.promotedShopId === input.shopId) {
+    throw new Error("PARTNER_CHANNEL_SHOPS_MATCH");
   }
 
   const duplicateChannel = await prisma.partnerChannel.findFirst({
@@ -314,6 +331,7 @@ export async function createPartnerChannel(input: CreatePartnerChannelInput) {
       slug,
       domain,
       shopId: input.shopId,
+      promotedShopId: input.promotedShopId,
       isActive: input.isActive ?? true,
     },
   });
@@ -325,6 +343,7 @@ type UpdatePartnerChannelInput = {
   slug?: string;
   domain?: string | null;
   shopId?: string;
+  promotedShopId?: string | null;
   isActive?: boolean;
 };
 
@@ -342,6 +361,8 @@ export async function updatePartnerChannel(input: UpdatePartnerChannelInput) {
   const domain =
     input.domain === undefined ? existing.domain : normalizeShopDomain(input.domain);
   const shopId = input.shopId ?? existing.shopId;
+  const promotedShopId =
+    input.promotedShopId === undefined ? existing.promotedShopId : input.promotedShopId;
 
   if (name.length < 2) {
     throw new Error("INVALID_PARTNER_CHANNEL_NAME");
@@ -351,13 +372,29 @@ export async function updatePartnerChannel(input: UpdatePartnerChannelInput) {
     throw new Error("INVALID_PARTNER_CHANNEL_SLUG");
   }
 
-  const shop = await prisma.shop.findUnique({
-    where: { id: shopId },
-    select: { id: true },
-  });
+  const [shop, promotedShop] = await Promise.all([
+    prisma.shop.findUnique({
+      where: { id: shopId },
+      select: { id: true },
+    }),
+    promotedShopId
+      ? prisma.shop.findUnique({
+          where: { id: promotedShopId },
+          select: { id: true },
+        })
+      : null,
+  ]);
 
   if (!shop) {
     throw new Error("SHOP_NOT_FOUND");
+  }
+
+  if (!promotedShopId || !promotedShop) {
+    throw new Error("PROMOTED_SHOP_NOT_FOUND");
+  }
+
+  if (promotedShopId === shopId) {
+    throw new Error("PARTNER_CHANNEL_SHOPS_MATCH");
   }
 
   const duplicateChannel = await prisma.partnerChannel.findFirst({
@@ -397,6 +434,7 @@ export async function updatePartnerChannel(input: UpdatePartnerChannelInput) {
       slug,
       domain,
       shopId,
+      promotedShopId,
       isActive: input.isActive ?? existing.isActive,
     },
   });

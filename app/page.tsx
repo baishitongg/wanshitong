@@ -4,31 +4,15 @@ import { ArrowRight, Store } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import ShopHomePage from "@/components/ShopHomePage";
 import { prisma } from "@/lib/prisma";
-import { getShopForCurrentDomain } from "@/lib/server/domainShop";
+import { getStorefrontForCurrentDomain } from "@/lib/server/domainShop";
 import { getShopLandingCards } from "@/lib/shops";
 
-export default async function PlatformLandingPage() {
-  const domainShop = await getShopForCurrentDomain();
-
-  if (domainShop) {
-    return (
-      <ShopHomePage
-        shop={domainShop}
-        storefrontBasePath=""
-        showPlatformLink={false}
-      />
-    );
-  }
-
-  const shops = await prisma.shop.findMany({
-    where: { status: "ACTIVE" },
-    orderBy: { createdAt: "asc" },
-  });
-
+function LandingCards({ shops }: { shops: Awaited<ReturnType<typeof prisma.shop.findMany>> }) {
   const shopCards = getShopLandingCards(shops);
   const productShop = shopCards.find((shop) => !/龙宫|service|spa|按摩|massage/i.test(shop.name));
   const serviceShop = shopCards.find((shop) => shop.id !== productShop?.id);
-  const orderedShopCards = [productShop, serviceShop].filter(Boolean);
+  const orderedShopCards =
+    shops.length <= 2 ? shopCards : [productShop, serviceShop].filter(Boolean);
 
   return (
     <div className="min-h-screen bg-background">
@@ -86,4 +70,29 @@ export default async function PlatformLandingPage() {
       </section>
     </div>
   );
+}
+
+export default async function PlatformLandingPage() {
+  const storefront = await getStorefrontForCurrentDomain();
+
+  if (storefront?.kind === "direct-shop") {
+    return (
+      <ShopHomePage
+        shop={storefront.shop}
+        storefrontBasePath=""
+        showPlatformLink={false}
+      />
+    );
+  }
+
+  if (storefront?.kind === "partner-channel") {
+    return <LandingCards shops={storefront.shops} />;
+  }
+
+  const shops = await prisma.shop.findMany({
+    where: { status: "ACTIVE" },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return <LandingCards shops={shops} />;
 }

@@ -22,6 +22,15 @@ export async function GET() {
         },
       },
       partnerChannels: {
+        include: {
+          promotedShop: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+        },
         orderBy: { createdAt: "asc" },
       },
     },

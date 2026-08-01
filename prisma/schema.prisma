@@ -27,54 +27,58 @@ model User {
 }
 
 model Shop {
-  id                String         @id @default(uuid())
-  name              String
-  slug              String         @unique
-  domain            String?        @unique
-  description       String?
-  heroTitle         String?
-  heroSubtitle      String?
-  heroImageUrl      String?
-  status            ShopStatus     @default(ACTIVE)
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  whatsappPhone     String?
-  telegramUsername  String?
-  shopType          ShopType       @default(PRODUCT)
-  ownershipType     OwnershipType  @default(MARKETPLACE)
-  checkoutMode      CheckoutMode   @default(DELIVERY)
-  categoryMode      CategoryMode   @default(FLAT)
-  themePrimary      String?
-  themeSecondary    String?
-  themeAccent       String?
-  themeSurface      String?
-  logoUrl           String?
-  homepageVariant   String?
-  paymentQrImageUrl String?
-  bankName          String?
-  bankAccountName   String?
-  bankAccountNumber String?
-  carts             Cart[]
-  categories        Category[]
-  orders            Order[]
-  partnerChannels   PartnerChannel[]
-  products          Product[]
-  staffProfiles     StaffProfile[]
+  id                        String           @id @default(uuid())
+  name                      String
+  slug                      String           @unique
+  domain                    String?          @unique
+  description               String?
+  heroTitle                 String?
+  heroSubtitle              String?
+  heroImageUrl              String?
+  status                    ShopStatus       @default(ACTIVE)
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+  whatsappPhone             String?
+  telegramUsername          String?
+  shopType                  ShopType         @default(PRODUCT)
+  ownershipType             OwnershipType    @default(MARKETPLACE)
+  checkoutMode              CheckoutMode     @default(DELIVERY)
+  categoryMode              CategoryMode     @default(FLAT)
+  themePrimary              String?
+  themeSecondary            String?
+  themeAccent               String?
+  themeSurface              String?
+  logoUrl                   String?
+  homepageVariant           String?
+  paymentQrImageUrl         String?
+  bankName                  String?
+  bankAccountName           String?
+  bankAccountNumber         String?
+  carts                     Cart[]
+  categories                Category[]
+  orders                    Order[]
+  partnerChannels           PartnerChannel[] @relation("PartnerShopChannels")
+  promotedInPartnerChannels PartnerChannel[] @relation("PromotedShopChannels")
+  products                  Product[]
+  staffProfiles             StaffProfile[]
 }
 
 model PartnerChannel {
-  id        String   @id @default(uuid())
-  name      String
-  slug      String   @unique
-  domain    String?  @unique
-  shopId    String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  orders    Order[]
+  id             String   @id @default(uuid())
+  name           String
+  slug           String   @unique
+  domain         String?  @unique
+  shopId         String
+  promotedShopId String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  shop           Shop     @relation("PartnerShopChannels", fields: [shopId], references: [id], onDelete: Cascade)
+  promotedShop   Shop?    @relation("PromotedShopChannels", fields: [promotedShopId], references: [id], onDelete: SetNull)
+  orders         Order[]
 
   @@index([shopId, isActive])
+  @@index([promotedShopId, isActive])
 }
 
 model StaffProfile {

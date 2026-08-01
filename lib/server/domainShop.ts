@@ -19,7 +19,7 @@ export function normalizeRequestDomain(host: string | null) {
 export async function getShopForCurrentDomain() {
   const storefront = await getStorefrontForCurrentDomain();
 
-  return storefront?.shop ?? null;
+  return storefront?.kind === "direct-shop" ? storefront.shop : null;
 }
 
 export async function getStorefrontForCurrentDomain() {
@@ -36,18 +36,31 @@ export async function getStorefrontForCurrentDomain() {
       shop: {
         status: "ACTIVE",
       },
+      OR: [
+        { promotedShopId: null },
+        {
+          promotedShop: {
+            status: "ACTIVE",
+          },
+        },
+      ],
     },
     include: {
       shop: true,
+      promotedShop: true,
     },
   });
 
   if (partnerChannel) {
-    const { shop, ...channel } = partnerChannel;
+    const { shop, promotedShop, ...channel } = partnerChannel;
+    const shops = promotedShop && promotedShop.id !== shop.id ? [shop, promotedShop] : [shop];
 
     return {
-      shop,
+      kind: "partner-channel" as const,
       partnerChannel: channel,
+      partnerShop: shop,
+      promotedShop,
+      shops,
     };
   }
 
@@ -60,6 +73,7 @@ export async function getStorefrontForCurrentDomain() {
 
   return shop
     ? {
+        kind: "direct-shop" as const,
         shop,
         partnerChannel: null,
       }

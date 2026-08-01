@@ -10,6 +10,7 @@ export async function POST(req: Request) {
       slug?: string;
       domain?: string | null;
       shopId?: string;
+      promotedShopId?: string | null;
       isActive?: boolean;
     };
 
@@ -18,7 +19,11 @@ export async function POST(req: Request) {
     }
 
     if (!body.shopId) {
-      return NextResponse.json({ error: "请选择要导流到的店铺" }, { status: 400 });
+      return NextResponse.json({ error: "请选择伙伴自己的店铺" }, { status: 400 });
+    }
+
+    if (!body.promotedShopId) {
+      return NextResponse.json({ error: "请选择要一起展示的店铺" }, { status: 400 });
     }
 
     const partnerChannel = await createPartnerChannel({
@@ -26,6 +31,7 @@ export async function POST(req: Request) {
       slug: body.slug,
       domain: body.domain,
       shopId: body.shopId,
+      promotedShopId: body.promotedShopId,
       isActive: body.isActive,
     });
 
@@ -35,7 +41,9 @@ export async function POST(req: Request) {
       const messages: Record<string, string> = {
         FORBIDDEN: "无权限",
         SHOP_NOT_FOUND: "店铺不存在",
+        PROMOTED_SHOP_NOT_FOUND: "一起展示的店铺不存在",
         SHOP_DOMAIN_EXISTS: "该域名已经绑定在店铺上",
+        PARTNER_CHANNEL_SHOPS_MATCH: "伙伴店铺和一起展示的店铺不能相同",
         INVALID_PARTNER_CHANNEL_NAME: "伙伴名称至少需要 2 个字符",
         INVALID_PARTNER_CHANNEL_SLUG: "伙伴 slug 无效，请使用字母、数字或连字符",
         PARTNER_CHANNEL_SLUG_EXISTS: "该伙伴 slug 已存在",

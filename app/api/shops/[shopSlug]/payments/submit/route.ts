@@ -35,7 +35,11 @@ export async function POST(req: Request, { params }: Params) {
     const shop = await requireShopBySlug(shopSlug);
     const storefront = await getStorefrontForCurrentDomain();
     const partnerChannelId =
-      storefront?.partnerChannel?.shopId === shop.id ? storefront.partnerChannel.id : null;
+      storefront?.kind === "partner-channel" &&
+      (storefront.partnerChannel.shopId === shop.id ||
+        storefront.partnerChannel.promotedShopId === shop.id)
+        ? storefront.partnerChannel.id
+        : null;
     const order = await createOrderFromCart({
       shopId: shop.id,
       userId: user.id,
