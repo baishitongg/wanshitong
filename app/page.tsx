@@ -18,12 +18,8 @@ function LandingCards({ shops }: { shops: Awaited<ReturnType<typeof prisma.shop.
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <section className="mx-auto max-w-7xl px-4 py-10 md:px-10 md:py-14 xl:px-12">
-        <div className="rounded-[28px] border bg-white px-8 py-8 text-center shadow-sm md:px-12 md:py-10">
-          <h1 className="text-4xl font-bold tracking-tight md:text-5xl">店铺入口</h1>
-        </div>
-
-        <div className="mt-8 grid gap-6 lg:grid-cols-2">
+      <section className="mx-auto max-w-7xl px-4 py-8 md:px-10 md:py-12 xl:px-12">
+        <div className="grid gap-6 lg:grid-cols-2">
           {orderedShopCards.map((shop, index) => {
             if (!shop) return null;
 
