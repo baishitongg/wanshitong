@@ -6,13 +6,17 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 // Client-side Supabase
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Server-side Supabase with service role key
-export const supabaseAdmin = createClient(
-    supabaseUrl,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export const BUCKET_NAME = "product";
+
+function getSupabaseAdmin() {
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!serviceRoleKey) {
+        throw new Error("SUPABASE_SERVICE_ROLE_KEY is required");
+    }
+
+    return createClient(supabaseUrl, serviceRoleKey);
+}
 
 /**
  * Generate a signed upload URL for direct browser upload.
@@ -25,7 +29,7 @@ export async function getSignedUploadUrl(fileName: string, folder = "products") 
         .replace(/[^a-zA-Z0-9/_-]/g, "") || "products";
     const path = `${safeFolder}/${Date.now()}-${safeFileName}`;
 
-    const { data, error } = await supabaseAdmin.storage
+    const { data, error } = await getSupabaseAdmin().storage
         .from(BUCKET_NAME)
         .createSignedUploadUrl(path);
 
@@ -41,6 +45,6 @@ export async function getSignedUploadUrl(fileName: string, folder = "products") 
  * Get a public URL for a stored image.
  */
 export function getPublicUrl(path: string) {
-    const { data } = supabaseAdmin.storage.from(BUCKET_NAME).getPublicUrl(path);
+    const { data } = getSupabaseAdmin().storage.from(BUCKET_NAME).getPublicUrl(path);
     return data.publicUrl;
 }
