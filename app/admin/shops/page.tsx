@@ -27,7 +27,11 @@ export default async function AdminShopsPage() {
           categories: true,
           orders: true,
           staffProfiles: true,
+          partnerChannels: true,
         },
+      },
+      partnerChannels: {
+        orderBy: { createdAt: "asc" },
       },
     },
     orderBy: { createdAt: "asc" },
@@ -65,6 +69,14 @@ export default async function AdminShopsPage() {
               bankName: paymentShop.bankName ?? null,
               bankAccountName: paymentShop.bankAccountName ?? null,
               bankAccountNumber: paymentShop.bankAccountNumber ?? null,
+              partnerChannels: shop.partnerChannels.map((partnerChannel) => ({
+                id: partnerChannel.id,
+                name: partnerChannel.name,
+                slug: partnerChannel.slug,
+                domain: partnerChannel.domain,
+                shopId: partnerChannel.shopId,
+                isActive: partnerChannel.isActive,
+              })),
             };
           })}
           staffProfiles={[]}

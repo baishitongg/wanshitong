@@ -123,6 +123,10 @@ export default function AdminOrdersPanel({
                     店铺：{order.shop?.name ?? "-"}
                   </p>
                   <p className="text-sm text-muted-foreground">
+                    来源：{order.partnerChannel?.name ?? "平台 / 自有域名"}
+                    {order.partnerChannel?.domain ? ` (${order.partnerChannel.domain})` : ""}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
                     下单时间：{new Date(order.createdAt).toLocaleString("zh-CN")}
                   </p>
                 </div>

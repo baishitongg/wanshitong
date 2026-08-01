@@ -32,6 +32,10 @@ export function normalizeShopDomain(value?: string | null) {
   return domain || null;
 }
 
+export function normalizePartnerChannelSlug(value: string) {
+  return normalizeShopSlug(value);
+}
+
 export async function requireAdminUser() {
   const user = await getSessionUser();
 
@@ -242,6 +246,159 @@ export async function updateShop(input: UpdateShopInput) {
       bankAccountNumber: null,
       status: input.status ?? "ACTIVE",
     } as never,
+  });
+}
+
+type CreatePartnerChannelInput = {
+  shopId: string;
+  name: string;
+  slug?: string;
+  domain?: string | null;
+  isActive?: boolean;
+};
+
+export async function createPartnerChannel(input: CreatePartnerChannelInput) {
+  const name = input.name.trim();
+  const slug = normalizePartnerChannelSlug(input.slug?.trim() || name);
+  const domain = normalizeShopDomain(input.domain);
+
+  if (name.length < 2) {
+    throw new Error("INVALID_PARTNER_CHANNEL_NAME");
+  }
+
+  if (slug.length < 2) {
+    throw new Error("INVALID_PARTNER_CHANNEL_SLUG");
+  }
+
+  const shop = await prisma.shop.findUnique({
+    where: { id: input.shopId },
+    select: { id: true },
+  });
+
+  if (!shop) {
+    throw new Error("SHOP_NOT_FOUND");
+  }
+
+  const duplicateChannel = await prisma.partnerChannel.findFirst({
+    where: {
+      OR: [{ slug }, ...(domain ? [{ domain }] : [])],
+    },
+    select: {
+      slug: true,
+      domain: true,
+    },
+  });
+
+  if (duplicateChannel?.slug === slug) {
+    throw new Error("PARTNER_CHANNEL_SLUG_EXISTS");
+  }
+
+  if (domain && duplicateChannel?.domain === domain) {
+    throw new Error("PARTNER_CHANNEL_DOMAIN_EXISTS");
+  }
+
+  if (domain) {
+    const duplicateShopDomain = await prisma.shop.findFirst({
+      where: { domain },
+      select: { id: true },
+    });
+
+    if (duplicateShopDomain) {
+      throw new Error("SHOP_DOMAIN_EXISTS");
+    }
+  }
+
+  return prisma.partnerChannel.create({
+    data: {
+      name,
+      slug,
+      domain,
+      shopId: input.shopId,
+      isActive: input.isActive ?? true,
+    },
+  });
+}
+
+type UpdatePartnerChannelInput = {
+  id: string;
+  name?: string;
+  slug?: string;
+  domain?: string | null;
+  shopId?: string;
+  isActive?: boolean;
+};
+
+export async function updatePartnerChannel(input: UpdatePartnerChannelInput) {
+  const existing = await prisma.partnerChannel.findUnique({
+    where: { id: input.id },
+  });
+
+  if (!existing) {
+    throw new Error("PARTNER_CHANNEL_NOT_FOUND");
+  }
+
+  const name = input.name?.trim() || existing.name;
+  const slug = normalizePartnerChannelSlug(input.slug?.trim() || existing.slug);
+  const domain =
+    input.domain === undefined ? existing.domain : normalizeShopDomain(input.domain);
+  const shopId = input.shopId ?? existing.shopId;
+
+  if (name.length < 2) {
+    throw new Error("INVALID_PARTNER_CHANNEL_NAME");
+  }
+
+  if (slug.length < 2) {
+    throw new Error("INVALID_PARTNER_CHANNEL_SLUG");
+  }
+
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { id: true },
+  });
+
+  if (!shop) {
+    throw new Error("SHOP_NOT_FOUND");
+  }
+
+  const duplicateChannel = await prisma.partnerChannel.findFirst({
+    where: {
+      id: { not: input.id },
+      OR: [{ slug }, ...(domain ? [{ domain }] : [])],
+    },
+    select: {
+      slug: true,
+      domain: true,
+    },
+  });
+
+  if (duplicateChannel?.slug === slug) {
+    throw new Error("PARTNER_CHANNEL_SLUG_EXISTS");
+  }
+
+  if (domain && duplicateChannel?.domain === domain) {
+    throw new Error("PARTNER_CHANNEL_DOMAIN_EXISTS");
+  }
+
+  if (domain) {
+    const duplicateShopDomain = await prisma.shop.findFirst({
+      where: { domain },
+      select: { id: true },
+    });
+
+    if (duplicateShopDomain) {
+      throw new Error("SHOP_DOMAIN_EXISTS");
+    }
+  }
+
+  return prisma.partnerChannel.update({
+    where: { id: input.id },
+    data: {
+      name,
+      slug,
+      domain,
+      shopId,
+      isActive: input.isActive ?? existing.isActive,
+    },
   });
 }
 

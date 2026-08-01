@@ -37,6 +37,14 @@ export default async function AdminOrdersPage() {
             slug: true,
           },
         },
+        partnerChannel: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            domain: true,
+          },
+        },
         items: {
           include: {
             product: {

@@ -146,6 +146,7 @@ export interface Order {
     paymentReceiptUploadedAt: string | null;
     assignedStaffUserId: string | null;
     assignedToStaffAt: string | null;
+    partnerChannelId?: string | null;
     items: OrderItem[];
     shop?:
         | {
@@ -156,6 +157,12 @@ export interface Order {
               telegramUsername?: string | null;
           }
         | null;
+    partnerChannel?: {
+        id: string;
+        name: string;
+        slug: string;
+        domain: string | null;
+    } | null;
     user?: CurrentUser | null;
     assignedStaff?: { id: string; name: string | null; phone: string } | null;
     createdAt: string;

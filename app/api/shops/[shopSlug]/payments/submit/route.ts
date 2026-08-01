@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createOrderFromCart } from "@/lib/commerce";
+import { getStorefrontForCurrentDomain } from "@/lib/server/domainShop";
 import { getSessionUser, requireShopBySlug } from "@/lib/shops";
 import type { PaymentMethod } from "@/types";
 
@@ -32,9 +33,13 @@ export async function POST(req: Request, { params }: Params) {
   try {
     const { shopSlug } = await params;
     const shop = await requireShopBySlug(shopSlug);
+    const storefront = await getStorefrontForCurrentDomain();
+    const partnerChannelId =
+      storefront?.partnerChannel?.shopId === shop.id ? storefront.partnerChannel.id : null;
     const order = await createOrderFromCart({
       shopId: shop.id,
       userId: user.id,
+      partnerChannelId,
       customerName: body.customerName ?? user.name ?? null,
       customerPhone: body.customerPhone ?? user.phone ?? null,
       telegramUsername: body.telegramUsername ?? user.telegramUsername ?? null,

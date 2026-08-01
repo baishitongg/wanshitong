@@ -17,16 +17,51 @@ export function normalizeRequestDomain(host: string | null) {
 }
 
 export async function getShopForCurrentDomain() {
+  const storefront = await getStorefrontForCurrentDomain();
+
+  return storefront?.shop ?? null;
+}
+
+export async function getStorefrontForCurrentDomain() {
   const domain = normalizeRequestDomain((await headers()).get("host"));
 
   if (!domain) {
     return null;
   }
 
-  return prisma.shop.findFirst({
+  const partnerChannel = await prisma.partnerChannel.findFirst({
+    where: {
+      domain,
+      isActive: true,
+      shop: {
+        status: "ACTIVE",
+      },
+    },
+    include: {
+      shop: true,
+    },
+  });
+
+  if (partnerChannel) {
+    const { shop, ...channel } = partnerChannel;
+
+    return {
+      shop,
+      partnerChannel: channel,
+    };
+  }
+
+  const shop = await prisma.shop.findFirst({
     where: {
       domain,
       status: "ACTIVE",
     },
   });
+
+  return shop
+    ? {
+        shop,
+        partnerChannel: null,
+      }
+    : null;
 }

@@ -18,7 +18,11 @@ export async function GET() {
           categories: true,
           orders: true,
           staffProfiles: true,
+          partnerChannels: true,
         },
+      },
+      partnerChannels: {
+        orderBy: { createdAt: "asc" },
       },
     },
     orderBy: { createdAt: "asc" },

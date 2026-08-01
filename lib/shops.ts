@@ -173,6 +173,14 @@ export const STAFF_ORDER_INCLUDE = {
       telegramUsername: true,
     },
   },
+  partnerChannel: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      domain: true,
+    },
+  },
   items: {
     include: {
       product: true,

@@ -12,6 +12,7 @@ const AUTO_RECEIVE_DAYS = 20;
 type CreateOrderInput = {
   shopId: string;
   userId: string;
+  partnerChannelId?: string | null;
   customerName?: string | null;
   customerPhone?: string | null;
   telegramUsername?: string | null;
@@ -349,6 +350,7 @@ export async function createOrderFromCart(input: CreateOrderInput) {
       data: {
         shopId: input.shopId,
         userId: input.userId,
+        partnerChannelId: input.partnerChannelId ?? null,
         flowType: bookingFlow ? "BOOKING" : "DELIVERY",
         customerName: input.customerName ?? null,
         customerPhone: resolvedPhone || null,

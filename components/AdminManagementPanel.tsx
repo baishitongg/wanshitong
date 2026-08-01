@@ -31,12 +31,23 @@ type ShopSummary = {
   bankAccountName: string | null;
   bankAccountNumber: string | null;
   status: "ACTIVE" | "INACTIVE";
+  partnerChannels?: PartnerChannelSummary[];
   _count: {
     products: number;
     categories: number;
     orders: number;
     staffProfiles: number;
+    partnerChannels?: number;
   };
+};
+
+type PartnerChannelSummary = {
+  id: string;
+  name: string;
+  slug: string;
+  domain: string | null;
+  shopId: string;
+  isActive: boolean;
 };
 
 type StaffSummary = {
@@ -122,6 +133,7 @@ export default function AdminManagementPanel({
 }: AdminManagementPanelProps) {
   const router = useRouter();
   const [creatingShop, setCreatingShop] = useState(false);
+  const [creatingPartner, setCreatingPartner] = useState(false);
   const [creatingStaff, setCreatingStaff] = useState(false);
   const [uploadingHero, setUploadingHero] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -129,6 +141,14 @@ export default function AdminManagementPanel({
   const [editingShopId, setEditingShopId] = useState<string | null>(null);
   const [updatingShop, setUpdatingShop] = useState(false);
   const [shopEditForm, setShopEditForm] = useState<ReturnType<typeof toShopForm> | null>(null);
+  const [partnerForm, setPartnerForm] = useState({
+    name: "",
+    slug: "",
+    domain: "",
+    shopId: shops[0]?.id ?? "",
+    isActive: true,
+  });
+  const [updatingPartnerId, setUpdatingPartnerId] = useState<string | null>(null);
   const [staffForm, setStaffForm] = useState({
     name: "",
     loginId: "",
@@ -173,6 +193,106 @@ export default function AdminManagementPanel({
       toast.error("网络错误，请稍后重试");
     } finally {
       setCreatingShop(false);
+    }
+  };
+
+  const handleCreatePartnerChannel = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCreatingPartner(true);
+
+    try {
+      const response = await fetch("/api/admin/partner-channels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(partnerForm),
+      });
+
+      const data = (await response.json()) as {
+        error?: string;
+        partnerChannel?: { name: string };
+      };
+
+      if (!response.ok) {
+        toast.error(data.error ?? "创建伙伴渠道失败");
+        return;
+      }
+
+      toast.success(`已创建伙伴渠道：${data.partnerChannel?.name ?? partnerForm.name}`);
+      setPartnerForm((current) => ({
+        ...current,
+        name: "",
+        slug: "",
+        domain: "",
+        isActive: true,
+      }));
+      router.refresh();
+    } catch {
+      toast.error("网络错误，请稍后重试");
+    } finally {
+      setCreatingPartner(false);
+    }
+  };
+
+  const updatePartnerChannelStatus = async (
+    partnerChannel: PartnerChannelSummary,
+    isActive: boolean,
+  ) => {
+    setUpdatingPartnerId(partnerChannel.id);
+
+    try {
+      const response = await fetch(`/api/admin/partner-channels/${partnerChannel.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: partnerChannel.name,
+          slug: partnerChannel.slug,
+          domain: partnerChannel.domain,
+          shopId: partnerChannel.shopId,
+          isActive,
+        }),
+      });
+
+      const data = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        toast.error(data.error ?? "更新伙伴渠道失败");
+        return;
+      }
+
+      toast.success(isActive ? "伙伴渠道已启用" : "伙伴渠道已停用");
+      router.refresh();
+    } catch {
+      toast.error("网络错误，请稍后重试");
+    } finally {
+      setUpdatingPartnerId(null);
+    }
+  };
+
+  const deletePartnerChannel = async (partnerChannel: PartnerChannelSummary) => {
+    if (!window.confirm(`确定删除伙伴渠道「${partnerChannel.name}」吗？`)) {
+      return;
+    }
+
+    setUpdatingPartnerId(partnerChannel.id);
+
+    try {
+      const response = await fetch(`/api/admin/partner-channels/${partnerChannel.id}`, {
+        method: "DELETE",
+      });
+
+      const data = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        toast.error(data.error ?? "删除伙伴渠道失败");
+        return;
+      }
+
+      toast.success("伙伴渠道已删除");
+      router.refresh();
+    } catch {
+      toast.error("网络错误，请稍后重试");
+    } finally {
+      setUpdatingPartnerId(null);
     }
   };
 
@@ -726,6 +846,110 @@ export default function AdminManagementPanel({
           </section>
 
           <section className="rounded-2xl border bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900">伙伴导流渠道</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              伙伴域名只负责导流，会显示所选择店铺的同一套商品、库存和下单系统。
+            </p>
+
+            <form onSubmit={handleCreatePartnerChannel} className="mt-5 grid gap-4 md:grid-cols-2">
+              <div>
+                <Label htmlFor="partner-shop">导流到店铺</Label>
+                <select
+                  id="partner-shop"
+                  value={partnerForm.shopId}
+                  onChange={(event) =>
+                    setPartnerForm((current) => ({
+                      ...current,
+                      shopId: event.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  required
+                >
+                  {shops.map((shop) => (
+                    <option key={shop.id} value={shop.id}>
+                      {shop.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <Label htmlFor="partner-name">伙伴名称</Label>
+                <Input
+                  id="partner-name"
+                  className="mt-2"
+                  value={partnerForm.name}
+                  onChange={(event) =>
+                    setPartnerForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                  placeholder="例如：One Them 推广"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="partner-slug">伙伴 slug</Label>
+                <Input
+                  id="partner-slug"
+                  className="mt-2"
+                  value={partnerForm.slug}
+                  onChange={(event) =>
+                    setPartnerForm((current) => ({
+                      ...current,
+                      slug: event.target.value,
+                    }))
+                  }
+                  placeholder="例如：one-them"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="partner-domain">伙伴域名 / 子域名</Label>
+                <Input
+                  id="partner-domain"
+                  className="mt-2"
+                  value={partnerForm.domain}
+                  onChange={(event) =>
+                    setPartnerForm((current) => ({
+                      ...current,
+                      domain: event.target.value,
+                    }))
+                  }
+                  placeholder="例如：one-them.yourdomain.com"
+                />
+              </div>
+
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={partnerForm.isActive}
+                  onChange={(event) =>
+                    setPartnerForm((current) => ({
+                      ...current,
+                      isActive: event.target.checked,
+                    }))
+                  }
+                />
+                立即启用
+              </label>
+
+              <div className="md:col-span-2">
+                <Button
+                  type="submit"
+                  className="bg-black text-white hover:bg-gray-800"
+                  disabled={creatingPartner || shops.length === 0}
+                >
+                  {creatingPartner ? "创建中..." : "创建伙伴渠道"}
+                </Button>
+              </div>
+            </form>
+          </section>
+
+          <section className="rounded-2xl border bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">店铺列表</h2>
             <div className="mt-4 space-y-3">
               {shops.map((shop) => (
@@ -781,7 +1005,61 @@ export default function AdminManagementPanel({
                     <p>分类：{shop._count.categories}</p>
                     <p>订单：{shop._count.orders}</p>
                     <p>员工：{shop._count.staffProfiles}</p>
+                    <p>伙伴渠道：{shop._count.partnerChannels ?? shop.partnerChannels?.length ?? 0}</p>
                   </div>
+
+                  {shop.partnerChannels?.length ? (
+                    <div className="mt-4 space-y-2 rounded-lg border border-gray-200 bg-white p-3">
+                      <p className="text-sm font-semibold text-gray-900">导流伙伴</p>
+                      {shop.partnerChannels.map((partnerChannel) => (
+                        <div
+                          key={partnerChannel.id}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-gray-50 px-3 py-2 text-sm"
+                        >
+                          <div>
+                            <p className="font-medium text-gray-900">{partnerChannel.name}</p>
+                            <p className="text-gray-500">
+                              {partnerChannel.domain ?? "未设置域名"} · {partnerChannel.slug}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                partnerChannel.isActive
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-gray-200 text-gray-700"
+                              }`}
+                            >
+                              {partnerChannel.isActive ? "启用" : "停用"}
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={updatingPartnerId === partnerChannel.id}
+                              onClick={() =>
+                                void updatePartnerChannelStatus(
+                                  partnerChannel,
+                                  !partnerChannel.isActive,
+                                )
+                              }
+                            >
+                              {partnerChannel.isActive ? "停用" : "启用"}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={updatingPartnerId === partnerChannel.id}
+                              onClick={() => void deletePartnerChannel(partnerChannel)}
+                            >
+                              删除
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
 
                   {editingShopId === shop.id && shopEditForm ? (
                     <form

@@ -57,8 +57,24 @@ model Shop {
   carts             Cart[]
   categories        Category[]
   orders            Order[]
+  partnerChannels   PartnerChannel[]
   products          Product[]
   staffProfiles     StaffProfile[]
+}
+
+model PartnerChannel {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  domain    String?  @unique
+  shopId    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  orders    Order[]
+
+  @@index([shopId, isActive])
 }
 
 model StaffProfile {
@@ -206,15 +222,18 @@ model Order {
   paymentReceiptUploadedAt DateTime?
   assignedStaffUserId      String?
   assignedToStaffAt        DateTime?
+  partnerChannelId         String?
   shopId                   String
   address                  Address?             @relation(fields: [addressId], references: [id])
   assignedStaff            User?                @relation("AssignedStaffOrders", fields: [assignedStaffUserId], references: [id])
+  partnerChannel           PartnerChannel?      @relation(fields: [partnerChannelId], references: [id], onDelete: SetNull)
   shop                     Shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)
   user                     User?                @relation(fields: [userId], references: [id])
   items                    OrderItem[]
 
   @@index([shopId, status])
   @@index([userId, createdAt])
+  @@index([partnerChannelId, createdAt])
 }
 
 model OrderItem {
