@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import type { Shop } from "@prisma/client";
+import HiddenServicesChat from "@/components/HiddenServicesChat";
 import Navbar from "@/components/Navbar";
 import ProductGridWithFilter from "@/components/ProductGridWithFilter";
 import ShopCategoryNavigation from "@/components/ShopCategoryNavigation";
@@ -59,14 +60,15 @@ export default async function ShopCategoryPage({
         storefrontBasePath={storefrontBasePath}
         showPlatformLink={showPlatformLink}
       />
+      <HiddenServicesChat show={shop.shopType === "SERVICE"} />
 
       <section
-        className="px-6 py-10 text-white md:px-20"
+        className="py-10 text-white"
         style={{
           background: `linear-gradient(90deg, ${theme.primary} 0%, ${theme.secondary} 100%)`,
         }}
       >
-        <div className="container mx-auto max-w-5xl space-y-2">
+        <div className="container mx-auto space-y-2 px-6 md:px-20">
           <nav
             className="flex items-center gap-1.5 text-sm"
             style={{ color: withAlpha("#ffffff", 0.8) }}
@@ -114,11 +116,10 @@ export default async function ShopCategoryPage({
         currentCategoryId={category.id}
         theme={theme}
         stickyDesktop
-        narrow
         storefrontBasePath={storefrontBasePath}
       />
 
-      <section className="container mx-auto max-w-5xl px-6 py-8 pb-20 md:px-20">
+      <section className="container mx-auto px-6 py-8 pb-20 md:px-20">
         <Suspense
           fallback={
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">

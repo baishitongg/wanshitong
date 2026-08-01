@@ -4,6 +4,7 @@ import type { Shop } from "@prisma/client";
 import { getCachedCategories, getCachedProducts } from "@/lib/queries";
 import { buildStorefrontHref } from "@/lib/shops";
 import { resolveShopTheme, withAlpha } from "@/lib/shopTheme";
+import HiddenServicesChat from "@/components/HiddenServicesChat";
 import Navbar from "@/components/Navbar";
 import ProductGridWithFilter from "@/components/ProductGridWithFilter";
 import ShopCategoryNavigation from "@/components/ShopCategoryNavigation";
@@ -38,6 +39,7 @@ export default async function ShopHomePage({
         storefrontBasePath={storefrontBasePath}
         showPlatformLink={showPlatformLink}
       />
+      <HiddenServicesChat show={shop.shopType === "SERVICE"} />
 
       <section
         className="relative overflow-hidden"

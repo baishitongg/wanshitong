@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, CalendarClock, MapPin, Send, ShoppingBag } from "lucide-react";
 import type { Shop } from "@prisma/client";
+import HiddenServicesChat from "@/components/HiddenServicesChat";
 import Navbar from "@/components/Navbar";
 import { buildStorefrontHref } from "@/lib/shops";
 import { resolveShopTheme, withAlpha } from "@/lib/shopTheme";
@@ -101,6 +102,7 @@ export default function ShopHowToUsePage({
         storefrontBasePath={storefrontBasePath}
         showPlatformLink={showPlatformLink}
       />
+      <HiddenServicesChat show={shop.shopType === "SERVICE"} />
 
       <div className="container mx-auto max-w-5xl px-6 py-8 md:px-20 md:py-10">
         <Link

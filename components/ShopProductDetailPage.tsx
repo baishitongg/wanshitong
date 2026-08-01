@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import type { Shop } from "@prisma/client";
+import HiddenServicesChat from "@/components/HiddenServicesChat";
 import Navbar from "@/components/Navbar";
 import ProductDetailClient from "@/components/ProductDetailClient";
 import ProductCard from "@/components/ProductCard";
@@ -60,6 +61,7 @@ export default async function ShopProductDetailPage({
         storefrontBasePath={storefrontBasePath}
         showPlatformLink={showPlatformLink}
       />
+      <HiddenServicesChat show={shop.shopType === "SERVICE"} />
 
       <div className="container mx-auto max-w-5xl px-6 py-8 md:px-20">
         <nav className="mb-6 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
