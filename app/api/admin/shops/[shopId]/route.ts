@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { CategoryMode, CheckoutMode, ShopStatus, ShopType } from "@prisma/client";
 import { requireAdminUser, updateShop } from "@/lib/admin";
+import { invalidateStorefrontCache } from "@/lib/queries";
 
 interface Params {
   params: Promise<{ shopId: string }>;
@@ -49,6 +50,7 @@ export async function PATCH(req: Request, { params }: Params) {
       homepageVariant: body.homepageVariant,
       status: body.status,
     });
+    await invalidateStorefrontCache();
 
     return NextResponse.json({ shop });
   } catch (error) {

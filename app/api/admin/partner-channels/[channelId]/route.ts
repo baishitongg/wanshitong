@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { invalidateStorefrontCache } from "@/lib/queries";
 import { requireAdminUser, updatePartnerChannel } from "@/lib/admin";
 
 interface Params {
@@ -46,6 +47,7 @@ export async function PATCH(req: Request, { params }: Params) {
       promotedShopId: body.promotedShopId,
       isActive: body.isActive,
     });
+    await invalidateStorefrontCache();
 
     return NextResponse.json({ partnerChannel });
   } catch (error) {
@@ -77,6 +79,7 @@ export async function DELETE(_req: Request, { params }: Params) {
     await prisma.partnerChannel.delete({
       where: { id: channelId },
     });
+    await invalidateStorefrontCache();
 
     return NextResponse.json({ ok: true });
   } catch (error) {

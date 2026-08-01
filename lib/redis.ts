@@ -79,3 +79,28 @@ export async function deleteRedisKeys(keys: string[]) {
     console.error("[redis] cache delete failed:", error);
   }
 }
+
+export async function deleteRedisKeysByPattern(pattern: string) {
+  try {
+    const redis = await getRedisClient();
+    if (!redis) return;
+
+    const keys: string[] = [];
+    let cursor = "0";
+
+    do {
+      const result = await redis.scan(cursor, {
+        MATCH: pattern,
+        COUNT: 100,
+      });
+      cursor = result.cursor;
+      keys.push(...result.keys);
+    } while (cursor !== "0");
+
+    if (keys.length > 0) {
+      await redis.del([...new Set(keys)]);
+    }
+  } catch (error) {
+    console.error(`[redis] cache pattern delete failed for ${pattern}:`, error);
+  }
+}

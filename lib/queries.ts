@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { deleteRedisKeys, getJsonCache, setJsonCache } from "@/lib/redis";
+import {
+  deleteRedisKeys,
+  deleteRedisKeysByPattern,
+  getJsonCache,
+  setJsonCache,
+} from "@/lib/redis";
 import { serializeProduct } from "@/lib/shops";
 
 const PRODUCT_LIST_TTL_SECONDS = 60;
@@ -69,6 +74,10 @@ export async function invalidateShopProductCache(shopSlug: string, productId?: s
 
 export async function invalidateShopCategoryCache(shopSlug: string) {
   await deleteRedisKeys([categoryListKey(shopSlug), productListKey(shopSlug)]);
+}
+
+export async function invalidateStorefrontCache() {
+  await deleteRedisKeysByPattern("storefront:domain:*");
 }
 
 async function getProductsFromDb(shopSlug: string) {

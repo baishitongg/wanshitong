@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createPartnerChannel, requireAdminUser } from "@/lib/admin";
+import { invalidateStorefrontCache } from "@/lib/queries";
 
 export async function POST(req: Request) {
   try {
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
       promotedShopId: body.promotedShopId,
       isActive: body.isActive,
     });
+    await invalidateStorefrontCache();
 
     return NextResponse.json({ partnerChannel }, { status: 201 });
   } catch (error) {

@@ -1,6 +1,13 @@
 import "server-only";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { getJsonCache, setJsonCache } from "@/lib/redis";
+
+const STOREFRONT_DOMAIN_TTL_SECONDS = 60;
+
+function storefrontDomainKey(domain: string) {
+  return `storefront:domain:${domain}`;
+}
 
 export function normalizeRequestDomain(host: string | null) {
   const domain = host
@@ -29,6 +36,21 @@ export async function getStorefrontForCurrentDomain() {
     return null;
   }
 
+  const key = storefrontDomainKey(domain);
+  const cached =
+    await getJsonCache<Awaited<ReturnType<typeof getStorefrontForDomainFromDb>>>(key);
+
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const storefront = await getStorefrontForDomainFromDb(domain);
+  await setJsonCache(key, storefront, STOREFRONT_DOMAIN_TTL_SECONDS);
+
+  return storefront;
+}
+
+async function getStorefrontForDomainFromDb(domain: string) {
   const partnerChannel = await prisma.partnerChannel.findFirst({
     where: {
       domain,

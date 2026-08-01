@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { CategoryMode, CheckoutMode, ShopStatus, ShopType } from "@prisma/client";
 import { createShop, requireAdminUser } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { invalidateStorefrontCache } from "@/lib/queries";
 import { getSessionUser } from "@/lib/shops";
 
 export async function GET() {
@@ -93,6 +94,7 @@ export async function POST(req: Request) {
       bankAccountNumber: body.bankAccountNumber,
       status: body.status,
     });
+    await invalidateStorefrontCache();
 
     return NextResponse.json({ shop }, { status: 201 });
   } catch (error) {
