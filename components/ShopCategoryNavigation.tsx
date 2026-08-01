@@ -173,7 +173,6 @@ export default function ShopCategoryNavigation({
 }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [manualOpenIds, setManualOpenIds] = useState<string[]>([]);
-  const [desktopOpenRootId, setDesktopOpenRootId] = useState<string | null>(null);
 
   const themeColor = theme?.secondary ?? "#b91c1c";
   const categoryItems = useMemo(
@@ -221,10 +220,9 @@ export default function ShopCategoryNavigation({
     [categories, currentCategoryId],
   );
   const currentRootId = ancestors[0]?.id ?? currentCategoryId ?? null;
-  const activeDesktopRootId = desktopOpenRootId ?? currentRootId;
   const activeDesktopRoot = useMemo(
-    () => rootNodes.find((node) => node.id === activeDesktopRootId) ?? null,
-    [activeDesktopRootId, rootNodes],
+    () => rootNodes.find((node) => node.id === currentRootId) ?? null,
+    [currentRootId, rootNodes],
   );
   const desktopSubcategories = useMemo(
     () => (activeDesktopRoot ? flattenNodes(activeDesktopRoot.children) : []),
@@ -314,14 +312,13 @@ export default function ShopCategoryNavigation({
             <Link
               href={getCategoryHref(shopSlug, undefined, storefrontBasePath)}
               className="inline-flex flex-shrink-0 items-center rounded-md border px-3 py-1.5 text-sm font-medium transition-all"
-              style={getButtonStyle(!currentCategoryId && !desktopOpenRootId, themeColor)}
+              style={getButtonStyle(!currentCategoryId, themeColor)}
             >
               全部分类
             </Link>
 
             {rootNodes.map((node) => {
               const isBranchActive = currentRootId === node.id;
-              const isOpen = activeDesktopRootId === node.id;
 
               if (node.children.length === 0) {
                 return (
@@ -337,23 +334,20 @@ export default function ShopCategoryNavigation({
               }
 
               return (
-                <button
+                <Link
                   key={node.id}
-                  type="button"
+                  href={getCategoryHref(shopSlug, node.id, storefrontBasePath)}
                   className="inline-flex flex-shrink-0 items-center gap-1 rounded-md border px-3 py-1.5 text-sm font-medium transition-all"
-                  style={getButtonStyle(isBranchActive || isOpen, themeColor)}
-                  onClick={() =>
-                    setDesktopOpenRootId((id) => (id === node.id ? null : node.id))
-                  }
-                  aria-expanded={isOpen}
+                  style={getButtonStyle(isBranchActive, themeColor)}
+                  aria-current={isBranchActive ? "page" : undefined}
                 >
                   {node.name}
                   <ChevronDown
                     className={`h-3.5 w-3.5 transition-transform ${
-                      isOpen ? "rotate-180" : ""
+                      isBranchActive ? "rotate-180" : ""
                     }`}
                   />
-                </button>
+                </Link>
               );
             })}
           </div>

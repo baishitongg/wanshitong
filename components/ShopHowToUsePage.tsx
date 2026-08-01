@@ -102,7 +102,7 @@ export default function ShopHowToUsePage({
         storefrontBasePath={storefrontBasePath}
         showPlatformLink={showPlatformLink}
       />
-      <HiddenServicesChat show={shop.shopType === "SERVICE"} />
+      <HiddenServicesChat show={shop.slug === "nanhai-longggong"} />
 
       <div className="container mx-auto max-w-5xl px-6 py-8 md:px-20 md:py-10">
         <Link

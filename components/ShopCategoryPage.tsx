@@ -60,7 +60,7 @@ export default async function ShopCategoryPage({
         storefrontBasePath={storefrontBasePath}
         showPlatformLink={showPlatformLink}
       />
-      <HiddenServicesChat show={shop.shopType === "SERVICE"} />
+      <HiddenServicesChat show={shop.slug === "nanhai-longggong"} />
 
       <section
         className="py-10 text-white"

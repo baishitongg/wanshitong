@@ -61,7 +61,7 @@ export default async function ShopProductDetailPage({
         storefrontBasePath={storefrontBasePath}
         showPlatformLink={showPlatformLink}
       />
-      <HiddenServicesChat show={shop.shopType === "SERVICE"} />
+      <HiddenServicesChat show={shop.slug === "nanhai-longggong"} />
 
       <div className="container mx-auto max-w-5xl px-6 py-8 md:px-20">
         <nav className="mb-6 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">

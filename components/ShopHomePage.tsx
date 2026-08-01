@@ -39,7 +39,7 @@ export default async function ShopHomePage({
         storefrontBasePath={storefrontBasePath}
         showPlatformLink={showPlatformLink}
       />
-      <HiddenServicesChat show={shop.shopType === "SERVICE"} />
+      <HiddenServicesChat show={shop.slug === "nanhai-longggong"} />
 
       <section
         className="relative overflow-hidden"
