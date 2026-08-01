@@ -1,0 +1,10 @@
+.env
+.env.*
+.git
+.github
+.next
+node_modules
+npm-debug.log*
+README.md
+build-errors.txt
+tsconfig.tsbuildinfo
