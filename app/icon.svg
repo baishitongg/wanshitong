@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#9f1d1d"/>
+  <path
+    d="M18 25.5h28M23 17.5h18c2.8 0 5 2.2 5 5v4.5c0 2-1.6 3.5-3.5 3.5h-21c-1.9 0-3.5-1.5-3.5-3.5v-4.5c0-2.8 2.2-5 5-5Z"
+    fill="none"
+    stroke="#ffd6d6"
+    stroke-width="3.4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <text
+    x="32"
+    y="48"
+    text-anchor="middle"
+    font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif"
+    font-size="31"
+    font-weight="800"
+    fill="#ffffff"
+  >壹</text>
+</svg>

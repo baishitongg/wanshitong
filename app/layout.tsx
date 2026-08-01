@@ -7,6 +7,9 @@ import QueryProvider from "@/components/QueryProvider";
 export const metadata: Metadata = {
   title: "壹号便民网 · 中国超市",
   description: "正宗中国商品，品种齐全，物美价廉，就在您身边。",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 function getSupabaseOrigin() {
