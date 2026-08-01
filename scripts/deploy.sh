@@ -23,7 +23,7 @@ git pull --ff-only origin "$BRANCH"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build app
 
 for attempt in $(seq 1 "$MIGRATE_ATTEMPTS"); do
-  if docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" run --rm --no-deps app npx prisma migrate deploy; then
+  if docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" run --rm --no-deps -T app npx prisma migrate deploy </dev/null; then
     break
   fi
 
