@@ -9,7 +9,6 @@ services:
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
         NEXT_PUBLIC_SUPPORT_WHATSAPP: ${NEXT_PUBLIC_SUPPORT_WHATSAPP:-}
         NEXT_PUBLIC_SUPPORT_TELEGRAM: ${NEXT_PUBLIC_SUPPORT_TELEGRAM:-}
-    container_name: wanshitong-app
     restart: unless-stopped
     env_file:
       - .env.production
@@ -24,7 +23,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: wanshitong-redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes:

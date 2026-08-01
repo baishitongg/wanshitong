@@ -19,7 +19,7 @@ git checkout "$BRANCH"
 git pull --ff-only origin "$BRANCH"
 
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build app
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" run --rm app npx prisma migrate deploy
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" run --rm --no-deps app npx prisma migrate deploy
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --remove-orphans
 docker image prune -f
 
