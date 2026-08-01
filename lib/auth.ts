@@ -38,6 +38,12 @@ type TokenFields = {
     staffShopSlug: string | null;
 };
 
+const isProduction = process.env.NODE_ENV === "production";
+const sessionCookieName = isProduction
+    ? "__Secure-authjs.session-token"
+    : "authjs.session-token";
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
     secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
     trustHost: true,
@@ -150,6 +156,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return session;
         },
     },
-    session: { strategy: "jwt" },
+    session: {
+        strategy: "jwt",
+        maxAge: SESSION_MAX_AGE_SECONDS,
+        updateAge: 60 * 60 * 24,
+    },
+    jwt: {
+        maxAge: SESSION_MAX_AGE_SECONDS,
+    },
+    cookies: {
+        sessionToken: {
+            name: sessionCookieName,
+            options: {
+                httpOnly: true,
+                sameSite: "lax",
+                path: "/",
+                secure: isProduction,
+            },
+        },
+    },
     pages: { signIn: "/login" },
 });

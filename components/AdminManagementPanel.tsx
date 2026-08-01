@@ -24,10 +24,6 @@ type ShopSummary = {
   ownershipType: "MARKETPLACE" | "SELF_OPERATED";
   checkoutMode: "DELIVERY" | "BOOKING" | "FLEXIBLE";
   categoryMode: "FLAT" | "NESTED";
-  themePrimary: string | null;
-  themeSecondary: string | null;
-  themeAccent: string | null;
-  themeSurface: string | null;
   logoUrl: string | null;
   homepageVariant: string | null;
   paymentQrImageUrl: string | null;
@@ -79,10 +75,6 @@ const initialShopForm = {
   ownershipType: "MARKETPLACE" as "MARKETPLACE" | "SELF_OPERATED",
   checkoutMode: "DELIVERY" as "DELIVERY" | "BOOKING" | "FLEXIBLE",
   categoryMode: "FLAT" as "FLAT" | "NESTED",
-  themePrimary: "",
-  themeSecondary: "",
-  themeAccent: "",
-  themeSurface: "",
   logoUrl: "",
   homepageVariant: "",
   paymentQrImageUrl: "",
@@ -91,32 +83,6 @@ const initialShopForm = {
   bankAccountNumber: "",
   status: "ACTIVE" as "ACTIVE" | "INACTIVE",
 };
-
-const SHOP_TYPE_THEMES = {
-  PRODUCT: {
-    themePrimary: "#7f1d1d",
-    themeSecondary: "#b91c1c",
-    themeAccent: "#ef4444",
-    themeSurface: "#ffffff",
-  },
-  SERVICE: {
-    themePrimary: "#C85C7C",
-    themeSecondary: "#F4A261",
-    themeAccent: "#FF6B6B",
-    themeSurface: "#ffffff",
-  },
-  HYBRID: {
-    themePrimary: "#7f1d1d",
-    themeSecondary: "#b91c1c",
-    themeAccent: "#ef4444",
-    themeSurface: "#ffffff",
-  },
-} satisfies Record<"PRODUCT" | "SERVICE" | "HYBRID", {
-  themePrimary: string;
-  themeSecondary: string;
-  themeAccent: string;
-  themeSurface: string;
-}>;
 
 function toShopForm(shop: ShopSummary) {
   return {
@@ -183,7 +149,6 @@ export default function AdminManagementPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...shopForm,
-          ...SHOP_TYPE_THEMES[shopForm.shopType],
           paymentQrImageUrl: "",
           bankName: "",
           bankAccountName: "",
@@ -267,7 +232,6 @@ export default function AdminManagementPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...shopEditForm,
-          ...SHOP_TYPE_THEMES[shopEditForm.shopType],
           paymentQrImageUrl: "",
           bankName: "",
           bankAccountName: "",

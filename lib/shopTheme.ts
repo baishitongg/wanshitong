@@ -12,20 +12,12 @@ type ThemeSource = {
   themeSurface?: string | null;
 };
 
-const DEFAULT_THEME: ShopTheme = {
+export const PLATFORM_THEME: ShopTheme = {
   primary: "#7f1d1d",
   secondary: "#b91c1c",
   accent: "#ef4444",
-  surface: "#fff7ed",
+  surface: "#ffffff",
 };
-
-function isHexColor(value: string | null | undefined) {
-  return Boolean(value && /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(value.trim()));
-}
-
-function normalizeHex(value: string | null | undefined, fallback: string) {
-  return isHexColor(value) ? value!.trim() : fallback;
-}
 
 export function hexToRgb(hex: string) {
   const sanitized = hex.replace("#", "");
@@ -50,10 +42,9 @@ export function withAlpha(hex: string, alpha: number) {
 }
 
 export function resolveShopTheme(source?: ThemeSource | null): ShopTheme {
+  void source;
+
   return {
-    primary: normalizeHex(source?.themePrimary, DEFAULT_THEME.primary),
-    secondary: normalizeHex(source?.themeSecondary, DEFAULT_THEME.secondary),
-    accent: normalizeHex(source?.themeAccent, DEFAULT_THEME.accent),
-    surface: normalizeHex(source?.themeSurface, DEFAULT_THEME.surface),
+    ...PLATFORM_THEME,
   };
 }

@@ -5,13 +5,33 @@ import { Toaster } from "sonner";
 import QueryProvider from "@/components/QueryProvider";
 
 export const metadata: Metadata = {
-  title: "万事通 · 中国超市",
+  title: "壹号便民网 · 中国超市",
   description: "正宗中国商品，品种齐全，物美价廉，就在您身边。",
 };
 
+function getSupabaseOrigin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  if (!url) return null;
+
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const supabaseOrigin = getSupabaseOrigin();
+
   return (
     <html lang="zh-CN" suppressHydrationWarning>
+      {supabaseOrigin ? (
+        <head>
+          <link rel="preconnect" href={supabaseOrigin} crossOrigin="" />
+          <link rel="dns-prefetch" href={supabaseOrigin} />
+        </head>
+      ) : null}
       <body className="font-sans antialiased">
         <SessionProvider>
           <QueryProvider>

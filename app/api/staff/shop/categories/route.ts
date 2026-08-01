@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { normalizeCategorySlug } from "@/lib/categories";
 import { prisma } from "@/lib/prisma";
 import { getCategoriesForShop } from "@/lib/commerce";
+import { invalidateShopCategoryCache } from "@/lib/queries";
 import { getStaffShopContext } from "@/lib/shops";
 
 export async function GET() {
@@ -66,6 +67,8 @@ export async function POST(req: Request) {
         parentId,
       },
     });
+
+    await invalidateShopCategoryCache(context.shopSlug!);
 
     return NextResponse.json(category, { status: 201 });
   } catch {

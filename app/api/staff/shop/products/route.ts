@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getProductsForShop } from "@/lib/commerce";
+import { invalidateShopProductCache } from "@/lib/queries";
 import { getStaffShopContext, serializeProduct } from "@/lib/shops";
 import {
   buildServiceAttributes,
@@ -125,6 +126,8 @@ export async function POST(req: Request) {
       },
       include: { category: true },
     });
+
+    await invalidateShopProductCache(context.shopSlug!, product.id);
 
     return NextResponse.json(serializeProduct(product), { status: 201 });
   } catch {

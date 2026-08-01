@@ -12,7 +12,7 @@ import {
   flattenCategoryTree,
   getCategoryAndDescendantIds,
 } from "@/lib/categories";
-import { buildShopHref } from "@/lib/shops";
+import { buildStorefrontHref } from "@/lib/shops";
 import type { ShopTheme } from "@/lib/shopTheme";
 
 const PER_PAGE = 8;
@@ -24,6 +24,7 @@ interface Props {
   hideCategoryPills?: boolean;
   defaultSearch?: string;
   theme?: ShopTheme;
+  storefrontBasePath?: string;
 }
 
 export default function ProductGridWithFilter({
@@ -33,6 +34,7 @@ export default function ProductGridWithFilter({
   hideCategoryPills = false,
   defaultSearch = "",
   theme,
+  storefrontBasePath,
 }: Props) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -252,7 +254,11 @@ export default function ProductGridWithFilter({
             {slice.map((product, index) => (
               <Link
                 key={product.id}
-                href={buildShopHref(shopSlug, `/product/${product.id}`)}
+                href={buildStorefrontHref(
+                  shopSlug,
+                  `/product/${product.id}`,
+                  storefrontBasePath,
+                )}
                 className="block"
               >
                 <ProductCard
@@ -260,6 +266,7 @@ export default function ProductGridWithFilter({
                   shopSlug={shopSlug}
                   mode="buyer"
                   theme={theme}
+                  storefrontBasePath={storefrontBasePath}
                   imagePriority={index < 4}
                 />
               </Link>

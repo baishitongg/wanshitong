@@ -45,10 +45,6 @@ export async function POST(req: Request) {
       ownershipType?: "MARKETPLACE" | "SELF_OPERATED";
       checkoutMode?: CheckoutMode;
       categoryMode?: CategoryMode;
-      themePrimary?: string | null;
-      themeSecondary?: string | null;
-      themeAccent?: string | null;
-      themeSurface?: string | null;
       logoUrl?: string | null;
       homepageVariant?: string | null;
       paymentQrImageUrl?: string | null;
@@ -76,10 +72,6 @@ export async function POST(req: Request) {
       ownershipType: body.ownershipType,
       checkoutMode: body.checkoutMode,
       categoryMode: body.categoryMode,
-      themePrimary: body.themePrimary,
-      themeSecondary: body.themeSecondary,
-      themeAccent: body.themeAccent,
-      themeSurface: body.themeSurface,
       logoUrl: body.logoUrl,
       homepageVariant: body.homepageVariant,
       paymentQrImageUrl: body.paymentQrImageUrl,

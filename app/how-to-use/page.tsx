@@ -1,26 +1,20 @@
 import { redirect } from "next/navigation";
-import ShopCategoryPage from "@/components/ShopCategoryPage";
+import ShopHowToUsePage from "@/components/ShopHowToUsePage";
 import { DEFAULT_SHOP_SLUG } from "@/lib/constants";
 import { getShopForCurrentDomain } from "@/lib/server/domainShop";
 
-interface Props {
-  params: Promise<{ id: string }>;
-}
-
-export default async function LegacyCategoryPage({ params }: Props) {
-  const { id } = await params;
+export default async function LegacyHowToUsePage() {
   const domainShop = await getShopForCurrentDomain();
 
   if (domainShop) {
     return (
-      <ShopCategoryPage
+      <ShopHowToUsePage
         shop={domainShop}
-        categoryId={id}
         storefrontBasePath=""
         showPlatformLink={false}
       />
     );
   }
 
-  redirect(`/shops/${DEFAULT_SHOP_SLUG}/category/${id}`);
+  redirect(`/shops/${DEFAULT_SHOP_SLUG}/how-to-use`);
 }

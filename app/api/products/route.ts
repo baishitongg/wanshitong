@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getCategoryAndDescendantIds } from "@/lib/categories";
 import { prisma } from "@/lib/prisma";
+import { invalidateShopProductCache } from "@/lib/queries";
 import { revalidatePath } from "next/cache";
 import { DEFAULT_SHOP_SLUG } from "@/lib/constants";
 
@@ -123,6 +124,7 @@ export async function POST(req: Request) {
   });
 
   revalidatePath("/");
+  await invalidateShopProductCache(DEFAULT_SHOP_SLUG, product.id);
 
   return NextResponse.json(
     {

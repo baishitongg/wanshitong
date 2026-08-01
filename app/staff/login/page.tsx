@@ -61,7 +61,7 @@ export default function StaffLoginPage() {
           <div className="inline-flex items-center justify-center bg-green-950 p-3 rounded-2xl">
             <ShieldCheck className="h-8 w-8 text-green-400" />
           </div>
-          <h1 className="text-2xl font-bold">万事通</h1>
+          <h1 className="text-2xl font-bold">壹号便民网</h1>
           <p className="text-sm text-muted-foreground">员工登录</p>
         </div>
 

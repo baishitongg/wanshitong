@@ -73,7 +73,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center bg-red-950 p-3 rounded-2xl">
             <Store className="h-8 w-8 text-red-300" />
           </div>
-          <h1 className="text-2xl font-bold">万事通</h1>
+          <h1 className="text-2xl font-bold">壹号便民网</h1>
           <p className="text-sm text-muted-foreground">顾客登录</p>
         </div>
 

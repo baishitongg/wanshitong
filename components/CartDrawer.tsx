@@ -7,13 +7,14 @@ import { CheckSquare, Minus, Package, Plus, ShoppingBag, Trash2 } from "lucide-r
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useShopCart } from "@/lib/store/cartStore";
-import { buildShopHref } from "@/lib/shops";
+import { buildStorefrontHref } from "@/lib/shops";
 import { formatServiceSlotLabel } from "@/lib/service-booking";
 
 interface CartDrawerProps {
   shopSlug: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  storefrontBasePath?: string;
 }
 
 function getCartItemLabel(item: {
@@ -38,11 +39,16 @@ function getCartItemLabel(item: {
   return null;
 }
 
-export default function CartDrawer({ shopSlug, open, onOpenChange }: CartDrawerProps) {
+export default function CartDrawer({
+  shopSlug,
+  open,
+  onOpenChange,
+  storefrontBasePath,
+}: CartDrawerProps) {
   const router = useRouter();
   const { items, loading, fetchCart, removeItem, updateQuantity, totalPrice, clearCart } =
     useShopCart(shopSlug);
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [selectedProductIdDraft, setSelectedProductIdDraft] = useState<string[] | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -50,15 +56,20 @@ export default function CartDrawer({ shopSlug, open, onOpenChange }: CartDrawerP
     }
   }, [fetchCart, open]);
 
-  useEffect(() => {
-    setSelectedProductIds((current) => {
-      const availableIds = items.map((item) => item.productId);
-      if (availableIds.length === 0) return [];
-      if (current.length === 0) return availableIds;
-      const next = current.filter((id) => availableIds.includes(id));
-      return next.length > 0 ? next : availableIds;
-    });
-  }, [items]);
+  const availableProductIds = useMemo(
+    () => items.map((item) => item.productId),
+    [items],
+  );
+  const availableProductIdSet = useMemo(
+    () => new Set(availableProductIds),
+    [availableProductIds],
+  );
+  const selectedProductIds = useMemo(() => {
+    if (availableProductIds.length === 0) return [];
+    if (selectedProductIdDraft === null) return availableProductIds;
+
+    return selectedProductIdDraft.filter((id) => availableProductIdSet.has(id));
+  }, [availableProductIds, availableProductIdSet, selectedProductIdDraft]);
 
   const selectedItems = useMemo(
     () => items.filter((item) => selectedProductIds.includes(item.productId)),
@@ -71,15 +82,20 @@ export default function CartDrawer({ shopSlug, open, onOpenChange }: CartDrawerP
   );
 
   const toggleProductSelection = (productId: string) => {
-    setSelectedProductIds((current) =>
-      current.includes(productId)
-        ? current.filter((id) => id !== productId)
-        : [...current, productId],
-    );
+    setSelectedProductIdDraft((current) => {
+      const base =
+        current === null
+          ? availableProductIds
+          : current.filter((id) => availableProductIdSet.has(id));
+
+      return base.includes(productId)
+        ? base.filter((id) => id !== productId)
+        : [...base, productId];
+    });
   };
 
   const toggleSelectAll = () => {
-    setSelectedProductIds(allSelected ? [] : items.map((item) => item.productId));
+    setSelectedProductIdDraft(allSelected ? [] : null);
   };
 
   const handleCheckout = () => {
@@ -89,7 +105,11 @@ export default function CartDrawer({ shopSlug, open, onOpenChange }: CartDrawerP
     }
     onOpenChange(false);
     const query = params.toString();
-    router.push(`${buildShopHref(shopSlug, "/cart")}${query ? `?${query}` : ""}`);
+    router.push(
+      `${buildStorefrontHref(shopSlug, "/cart", storefrontBasePath)}${
+        query ? `?${query}` : ""
+      }`,
+    );
   };
 
   return (

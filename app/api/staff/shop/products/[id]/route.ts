@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { invalidateShopProductCache } from "@/lib/queries";
 import { getStaffShopContext, serializeProduct } from "@/lib/shops";
 import {
   buildServiceAttributes,
@@ -130,6 +131,8 @@ export async function PATCH(req: Request, { params }: Params) {
       include: { category: true },
     });
 
+    await invalidateShopProductCache(context.shopSlug!, product.id);
+
     return NextResponse.json(serializeProduct(product));
   } catch {
     return NextResponse.json({ error: "无权限" }, { status: 403 });
@@ -156,6 +159,8 @@ export async function DELETE(_req: Request, { params }: Params) {
     }
 
     await prisma.product.delete({ where: { id } });
+    await invalidateShopProductCache(context.shopSlug!, id);
+
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "无权限" }, { status: 403 });

@@ -1,12 +1,14 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 import { Package, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { buildStorefrontHref } from "@/lib/shops";
 import { useShopCart } from "@/lib/store/cartStore";
 import type { ShopTheme } from "@/lib/shopTheme";
 import type { Product } from "@/types";
@@ -17,6 +19,7 @@ interface ProductCardProps extends Product {
   onEdit?: (product: Product) => void;
   theme?: ShopTheme;
   imagePriority?: boolean;
+  storefrontBasePath?: string;
 }
 
 export default function ProductCard({
@@ -25,11 +28,14 @@ export default function ProductCard({
   onEdit,
   theme,
   imagePriority = false,
+  storefrontBasePath,
   ...product
 }: ProductCardProps) {
   const { data: session } = useSession();
   const router = useRouter();
   const { addItem } = useShopCart(shopSlug ?? "__platform__");
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const isService =
     product.itemType === "SERVICE" ||
@@ -47,7 +53,9 @@ export default function ProductCard({
         return;
       }
 
-      router.push(`/shops/${shopSlug}/product/${product.id}`);
+      router.push(
+        buildStorefrontHref(shopSlug, `/product/${product.id}`, storefrontBasePath),
+      );
       return;
     }
 
@@ -81,17 +89,28 @@ export default function ProductCard({
   };
 
   return (
-    <div className="group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-white transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg">
+    <div className="group flex h-full flex-col overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50 transition-all duration-300 hover:-translate-y-0.5 hover:border-red-200 hover:shadow-lg">
       <div className="relative aspect-square shrink-0 overflow-hidden bg-white">
-        {product.imageUrl ? (
-          <Image
-            src={product.imageUrl}
-            alt={product.name}
-            fill
-            className="object-contain p-3 transition-transform duration-500"
-            sizes="(max-width: 768px) 50vw, 25vw"
-            priority={imagePriority}
-          />
+        {product.imageUrl && !imageError ? (
+          <>
+            <div
+              className={`absolute inset-3 rounded-lg bg-neutral-100 transition-opacity ${
+                imageLoaded ? "opacity-0" : "animate-pulse opacity-100"
+              }`}
+            />
+            <Image
+              src={product.imageUrl}
+              alt={product.name}
+              fill
+              className={`object-contain p-3 transition-opacity duration-300 ${
+                imageLoaded ? "opacity-100" : "opacity-0"
+              }`}
+              sizes="(max-width: 768px) 50vw, 25vw"
+              priority={imagePriority}
+              onLoad={() => setImageLoaded(true)}
+              onError={() => setImageError(true)}
+            />
+          </>
         ) : (
           <div className="flex h-full items-center justify-center bg-white">
             <Package className="h-12 w-12 text-muted-foreground/40" />
@@ -113,7 +132,7 @@ export default function ProductCard({
         )}
       </div>
 
-      <div className="flex flex-1 flex-col bg-white p-3">
+      <div className="flex flex-1 flex-col bg-neutral-50 p-3">
         <div className="min-h-[5rem]">
           <h3
             className="min-h-[3.75rem] line-clamp-3 text-sm font-medium leading-tight text-foreground transition-colors group-hover:text-primary"

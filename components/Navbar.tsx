@@ -26,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import CartDrawer from "@/components/CartDrawer";
-import { buildShopHref } from "@/lib/shops";
+import { buildStorefrontHref } from "@/lib/shops";
 import { withAlpha, type ShopTheme } from "@/lib/shopTheme";
 import { useShopCart } from "@/lib/store/cartStore";
 
@@ -46,6 +46,8 @@ type NavbarProps = {
   supportWhatsApp?: string | null;
   supportTelegram?: string | null;
   hideCart?: boolean;
+  storefrontBasePath?: string;
+  showPlatformLink?: boolean;
 };
 
 function buildWhatsAppLink(phone: string) {
@@ -66,6 +68,8 @@ export default function Navbar({
   supportWhatsApp,
   supportTelegram,
   hideCart = false,
+  storefrontBasePath,
+  showPlatformLink = true,
 }: NavbarProps) {
   const { data: session, status } = useSession();
   const user = session?.user as SessionUser | undefined;
@@ -75,7 +79,12 @@ export default function Navbar({
   const { items, fetchCart, resetCart } = useShopCart(shopSlug ?? "__platform__");
   const isShopContext = Boolean(shopSlug);
   const showCart = Boolean(shopSlug) && !hideCart;
-  const guideHref = shopSlug ? buildShopHref(shopSlug, "/how-to-use") : null;
+  const shopHomeHref = shopSlug
+    ? buildStorefrontHref(shopSlug, "", storefrontBasePath)
+    : homeHref;
+  const guideHref = shopSlug
+    ? buildStorefrontHref(shopSlug, "/how-to-use", storefrontBasePath)
+    : null;
   const supportLabel = shopName ?? "店铺客服";
   const totalItems = useMemo(
     () => items.reduce((sum, item) => sum + item.quantity, 0),
@@ -116,19 +125,21 @@ export default function Navbar({
           <div className="flex items-center">
             <Link href={homeHref} className="flex items-center gap-2 text-xl font-bold text-white">
               <Store className="h-6 w-6" style={{ color: theme?.accent ?? "#fca5a5" }} />
-              <span className="tracking-wide">万事通</span>
+              <span className="tracking-wide">壹号便民网</span>
             </Link>
           </div>
 
           <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
             {shopSlug && (
               <>
-                <Link href="/" className="transition-colors hover:text-white" style={{ color: subtleText }}>
-                  平台主页
-                </Link>
+                {showPlatformLink && (
+                  <Link href="/" className="transition-colors hover:text-white" style={{ color: subtleText }}>
+                    平台主页
+                  </Link>
+                )}
 
                 <Link
-                  href={buildShopHref(shopSlug)}
+                  href={shopHomeHref}
                   className="transition-colors hover:text-white"
                   style={{ color: subtleText }}
                 >
@@ -209,15 +220,17 @@ export default function Navbar({
                 <DropdownMenuContent align="end" className="w-56">
                   {shopSlug && (
                     <>
-                      <DropdownMenuItem asChild>
-                        <Link href="/" className="flex items-center gap-2">
-                          <Store className="h-4 w-4" />
-                          平台主页
-                        </Link>
-                      </DropdownMenuItem>
+                      {showPlatformLink && (
+                        <DropdownMenuItem asChild>
+                          <Link href="/" className="flex items-center gap-2">
+                            <Store className="h-4 w-4" />
+                            平台主页
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
 
                       <DropdownMenuItem asChild>
-                        <Link href={buildShopHref(shopSlug)} className="flex items-center gap-2">
+                        <Link href={shopHomeHref} className="flex items-center gap-2">
                           <Store className="h-4 w-4" />
                           店铺主页
                         </Link>
@@ -376,7 +389,14 @@ export default function Navbar({
         </div>
       </header>
 
-      {showCart && <CartDrawer shopSlug={shopSlug!} open={cartOpen} onOpenChange={setCartOpen} />}
+      {showCart && (
+        <CartDrawer
+          shopSlug={shopSlug!}
+          open={cartOpen}
+          onOpenChange={setCartOpen}
+          storefrontBasePath={storefrontBasePath}
+        />
+      )}
     </>
   );
 }

@@ -8,7 +8,7 @@ import {
   getCategoryAncestors,
   type CategoryNode,
 } from "@/lib/categories";
-import { buildShopHref } from "@/lib/shops";
+import { buildStorefrontHref } from "@/lib/shops";
 import { withAlpha, type ShopTheme } from "@/lib/shopTheme";
 import type { Category } from "@/types";
 
@@ -19,6 +19,7 @@ interface Props {
   theme?: ShopTheme;
   stickyDesktop?: boolean;
   narrow?: boolean;
+  storefrontBasePath?: string;
 }
 
 type FlatCategory = {
@@ -38,10 +39,14 @@ function flattenNodes(
   ]);
 }
 
-function getCategoryHref(shopSlug: string, categoryId?: string) {
+function getCategoryHref(
+  shopSlug: string,
+  categoryId?: string,
+  storefrontBasePath?: string,
+) {
   return categoryId
-    ? buildShopHref(shopSlug, `/category/${categoryId}`)
-    : buildShopHref(shopSlug);
+    ? buildStorefrontHref(shopSlug, `/category/${categoryId}`, storefrontBasePath)
+    : buildStorefrontHref(shopSlug, "", storefrontBasePath);
 }
 
 function getButtonStyle(isActive: boolean, color: string) {
@@ -64,6 +69,7 @@ type MobileBranchProps = {
   branchIds: Set<string>;
   openIds: Set<string>;
   themeColor: string;
+  storefrontBasePath?: string;
   level?: number;
   onToggle: (categoryId: string) => void;
   onNavigate: () => void;
@@ -76,6 +82,7 @@ function MobileCategoryBranch({
   branchIds,
   openIds,
   themeColor,
+  storefrontBasePath,
   level = 0,
   onToggle,
   onNavigate,
@@ -89,7 +96,7 @@ function MobileCategoryBranch({
   if (!hasChildren) {
     return (
       <Link
-        href={getCategoryHref(shopSlug, node.id)}
+        href={getCategoryHref(shopSlug, node.id, storefrontBasePath)}
         className="block rounded-md py-2.5 pr-3 text-sm font-medium transition-colors hover:bg-muted"
         style={{
           paddingLeft: leftPadding,
@@ -126,7 +133,7 @@ function MobileCategoryBranch({
           style={{ borderColor: withAlpha(themeColor, 0.18) }}
         >
           <Link
-            href={getCategoryHref(shopSlug, node.id)}
+            href={getCategoryHref(shopSlug, node.id, storefrontBasePath)}
             className="block rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted"
             style={{ color: isCurrent ? themeColor : undefined }}
             onClick={onNavigate}
@@ -143,6 +150,7 @@ function MobileCategoryBranch({
               branchIds={branchIds}
               openIds={openIds}
               themeColor={themeColor}
+              storefrontBasePath={storefrontBasePath}
               level={level + 1}
               onToggle={onToggle}
               onNavigate={onNavigate}
@@ -161,6 +169,7 @@ export default function ShopCategoryNavigation({
   theme,
   stickyDesktop = false,
   narrow = false,
+  storefrontBasePath,
 }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [manualOpenIds, setManualOpenIds] = useState<string[]>([]);
@@ -236,8 +245,8 @@ export default function ShopCategoryNavigation({
 
   return (
     <>
-      <div className="sticky top-16 z-30 border-b border-border bg-background md:hidden">
-        <div className={`${containerClass} py-3`}>
+      <div className="sticky top-16 z-40 border-b border-border bg-background md:hidden">
+        <div className={`${containerClass} relative py-3`}>
           <button
             type="button"
             onClick={() => setMobileOpen((open) => !open)}
@@ -262,9 +271,9 @@ export default function ShopCategoryNavigation({
           </button>
 
           {mobileOpen && (
-            <div className="mt-2 max-h-80 overflow-y-auto rounded-md border border-border bg-background p-2 shadow-md">
+            <div className="absolute left-6 right-6 top-full z-50 mt-2 max-h-[min(20rem,calc(100vh-9rem))] overflow-y-auto rounded-md border border-border bg-white p-2 shadow-lg">
               <Link
-                href={getCategoryHref(shopSlug)}
+                href={getCategoryHref(shopSlug, undefined, storefrontBasePath)}
                 className="block rounded-md px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
                 style={{ color: !currentCategoryId ? themeColor : undefined }}
                 onClick={() => setMobileOpen(false)}
@@ -281,6 +290,7 @@ export default function ShopCategoryNavigation({
                   branchIds={branchIds}
                   openIds={openIds}
                   themeColor={themeColor}
+                  storefrontBasePath={storefrontBasePath}
                   onToggle={toggleCategory}
                   onNavigate={() => setMobileOpen(false)}
                 />
@@ -302,7 +312,7 @@ export default function ShopCategoryNavigation({
             </span>
 
             <Link
-              href={getCategoryHref(shopSlug)}
+              href={getCategoryHref(shopSlug, undefined, storefrontBasePath)}
               className="inline-flex flex-shrink-0 items-center rounded-md border px-3 py-1.5 text-sm font-medium transition-all"
               style={getButtonStyle(!currentCategoryId && !desktopOpenRootId, themeColor)}
             >
@@ -317,7 +327,7 @@ export default function ShopCategoryNavigation({
                 return (
                   <Link
                     key={node.id}
-                    href={getCategoryHref(shopSlug, node.id)}
+                    href={getCategoryHref(shopSlug, node.id, storefrontBasePath)}
                     className="inline-flex flex-shrink-0 items-center rounded-md border px-3 py-1.5 text-sm font-medium transition-all"
                     style={getButtonStyle(currentCategoryId === node.id, themeColor)}
                   >
@@ -356,7 +366,11 @@ export default function ShopCategoryNavigation({
           >
             <div className={`${containerClass} flex flex-wrap gap-2 py-3`}>
               <Link
-                href={getCategoryHref(shopSlug, activeDesktopRoot.id)}
+                href={getCategoryHref(
+                  shopSlug,
+                  activeDesktopRoot.id,
+                  storefrontBasePath,
+                )}
                 className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm font-medium transition-all"
                 style={getButtonStyle(currentCategoryId === activeDesktopRoot.id, themeColor)}
               >
@@ -366,7 +380,7 @@ export default function ShopCategoryNavigation({
               {desktopSubcategories.map(({ node, depth }) => (
                 <Link
                   key={node.id}
-                  href={getCategoryHref(shopSlug, node.id)}
+                  href={getCategoryHref(shopSlug, node.id, storefrontBasePath)}
                   className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm font-medium transition-all"
                   style={getButtonStyle(currentCategoryId === node.id, themeColor)}
                 >

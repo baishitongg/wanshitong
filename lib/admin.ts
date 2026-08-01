@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { CategoryMode, CheckoutMode, Role, ShopStatus, ShopType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/shops";
+import { PLATFORM_THEME } from "@/lib/shopTheme";
 
 export function validateLoginId(loginId: string) {
   return /^[a-zA-Z0-9_-]{4,32}$/.test(loginId);
@@ -55,10 +56,6 @@ type CreateShopInput = {
   ownershipType?: "MARKETPLACE" | "SELF_OPERATED";
   checkoutMode?: CheckoutMode;
   categoryMode?: CategoryMode;
-  themePrimary?: string | null;
-  themeSecondary?: string | null;
-  themeAccent?: string | null;
-  themeSurface?: string | null;
   logoUrl?: string | null;
   homepageVariant?: string | null;
   paymentQrImageUrl?: string | null;
@@ -68,39 +65,12 @@ type CreateShopInput = {
   status?: ShopStatus;
 };
 
-const SHOP_TYPE_THEMES = {
-  PRODUCT: {
-    themePrimary: "#7f1d1d",
-    themeSecondary: "#b91c1c",
-    themeAccent: "#ef4444",
-    themeSurface: "#ffffff",
-  },
-  SERVICE: {
-    themePrimary: "#C85C7C",
-    themeSecondary: "#F4A261",
-    themeAccent: "#FF6B6B",
-    themeSurface: "#ffffff",
-  },
-  HYBRID: {
-    themePrimary: "#7f1d1d",
-    themeSecondary: "#b91c1c",
-    themeAccent: "#ef4444",
-    themeSurface: "#ffffff",
-  },
-} satisfies Record<ShopType, {
-  themePrimary: string;
-  themeSecondary: string;
-  themeAccent: string;
-  themeSurface: string;
-}>;
-
 export async function createShop(input: CreateShopInput) {
   const name = input.name.trim();
   const slug = normalizeShopSlug(input.slug?.trim() || name);
   const shopType = input.shopType ?? ShopType.PRODUCT;
   const domain =
     shopType === ShopType.SERVICE ? null : normalizeShopDomain(input.domain);
-  const theme = SHOP_TYPE_THEMES[shopType];
 
   if (name.length < 2) {
     throw new Error("INVALID_SHOP_NAME");
@@ -150,10 +120,10 @@ export async function createShop(input: CreateShopInput) {
       ownershipType: input.ownershipType ?? "MARKETPLACE",
       checkoutMode: input.checkoutMode ?? "DELIVERY",
       categoryMode: input.categoryMode ?? "FLAT",
-      themePrimary: theme.themePrimary,
-      themeSecondary: theme.themeSecondary,
-      themeAccent: theme.themeAccent,
-      themeSurface: theme.themeSurface,
+      themePrimary: PLATFORM_THEME.primary,
+      themeSecondary: PLATFORM_THEME.secondary,
+      themeAccent: PLATFORM_THEME.accent,
+      themeSurface: PLATFORM_THEME.surface,
       logoUrl: input.logoUrl?.trim() || null,
       homepageVariant: input.homepageVariant?.trim() || null,
       paymentQrImageUrl: null,
@@ -214,7 +184,6 @@ export async function updateShop(input: UpdateShopInput) {
   const shopType = input.shopType ?? existing.shopType;
   const domain =
     shopType === ShopType.SERVICE ? null : normalizeShopDomain(input.domain);
-  const theme = SHOP_TYPE_THEMES[shopType];
 
   if (name.length < 2) {
     throw new Error("INVALID_SHOP_NAME");
@@ -261,10 +230,10 @@ export async function updateShop(input: UpdateShopInput) {
       checkoutMode:
         input.checkoutMode ?? (shopType === ShopType.SERVICE ? "BOOKING" : "DELIVERY"),
       categoryMode: input.categoryMode ?? existing.categoryMode,
-      themePrimary: theme.themePrimary,
-      themeSecondary: theme.themeSecondary,
-      themeAccent: theme.themeAccent,
-      themeSurface: theme.themeSurface,
+      themePrimary: PLATFORM_THEME.primary,
+      themeSecondary: PLATFORM_THEME.secondary,
+      themeAccent: PLATFORM_THEME.accent,
+      themeSurface: PLATFORM_THEME.surface,
       logoUrl: input.logoUrl?.trim() || null,
       homepageVariant: input.homepageVariant?.trim() || null,
       paymentQrImageUrl: null,

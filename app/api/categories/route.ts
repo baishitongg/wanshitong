@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { normalizeCategorySlug } from "@/lib/categories";
 import { prisma } from "@/lib/prisma";
+import { invalidateShopCategoryCache } from "@/lib/queries";
 import { DEFAULT_SHOP_SLUG } from "@/lib/constants";
 
 type SessionUser = {
@@ -89,6 +90,8 @@ export async function POST(req: Request) {
       parentId,
     },
   });
+
+  await invalidateShopCategoryCache(DEFAULT_SHOP_SLUG);
 
   return NextResponse.json(category, { status: 201 });
 }

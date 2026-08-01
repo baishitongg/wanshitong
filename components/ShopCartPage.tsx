@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { useShopCart } from "@/lib/store/cartStore";
-import { buildShopHref } from "@/lib/shops";
+import { buildStorefrontHref } from "@/lib/shops";
 import { formatServiceSlotLabel } from "@/lib/service-booking";
 import type { ShopTheme } from "@/lib/shopTheme";
 import { Button } from "@/components/ui/button";
@@ -89,6 +89,7 @@ interface Props {
   theme?: ShopTheme;
   supportWhatsApp?: string | null;
   supportTelegram?: string | null;
+  storefrontBasePath?: string;
 }
 
 export default function ShopCartPage({
@@ -97,6 +98,7 @@ export default function ShopCartPage({
   theme,
   supportWhatsApp,
   supportTelegram,
+  storefrontBasePath,
 }: Props) {
   const { data: session, status, update } = useSession();
   const router = useRouter();
@@ -294,6 +296,7 @@ export default function ShopCartPage({
           theme={theme}
           supportWhatsApp={supportWhatsApp}
           supportTelegram={supportTelegram}
+          storefrontBasePath={storefrontBasePath}
         />
         <div className="flex items-center justify-center py-40 text-muted-foreground">
           <Loader2 className="mr-2 h-6 w-6 animate-spin" />
@@ -311,10 +314,11 @@ export default function ShopCartPage({
         theme={theme}
         supportWhatsApp={supportWhatsApp}
         supportTelegram={supportTelegram}
+        storefrontBasePath={storefrontBasePath}
       />
       <div className="container mx-auto max-w-3xl px-6 py-8 md:px-20">
         <Link
-          href={buildShopHref(shopSlug)}
+          href={buildStorefrontHref(shopSlug, "", storefrontBasePath)}
           className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -336,7 +340,7 @@ export default function ShopCartPage({
           <div className="flex flex-col items-center gap-4 py-24 text-muted-foreground">
             <Package className="h-16 w-16 opacity-20" />
             <p className="text-lg font-medium">购物车是空的</p>
-            <Link href={buildShopHref(shopSlug)}>
+            <Link href={buildStorefrontHref(shopSlug, "", storefrontBasePath)}>
               <Button variant="outline" className="flex items-center gap-2">
                 <ArrowLeft className="h-4 w-4" />
                 去选购
@@ -601,7 +605,7 @@ export default function ShopCartPage({
             </Button>
 
             <Link
-              href={buildShopHref(shopSlug)}
+              href={buildStorefrontHref(shopSlug, "", storefrontBasePath)}
               className="block text-center text-sm text-muted-foreground hover:underline"
             >
               继续购物

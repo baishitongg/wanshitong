@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { invalidateShopProductCache } from "@/lib/queries";
 import { revalidatePath } from "next/cache";
 
 type SessionUser = {
@@ -35,7 +36,10 @@ export async function PATCH(
     const { name, description, price, stock, categoryId, imageUrl, status } =
         body;
 
-    const existing = await prisma.product.findUnique({ where: { id } });
+    const existing = await prisma.product.findUnique({
+        where: { id },
+        include: { shop: { select: { slug: true } } },
+    });
 
     if (!existing) {
         return NextResponse.json({ error: "商品不存在" }, { status: 404 });
@@ -79,6 +83,7 @@ export async function PATCH(
     });
 
     revalidatePath("/");
+    await invalidateShopProductCache(existing.shop.slug, id);
 
     return NextResponse.json(product);
 }
@@ -98,7 +103,10 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const existing = await prisma.product.findUnique({ where: { id } });
+    const existing = await prisma.product.findUnique({
+        where: { id },
+        include: { shop: { select: { slug: true } } },
+    });
 
     if (!existing) {
         return NextResponse.json({ error: "商品不存在" }, { status: 404 });
@@ -107,6 +115,7 @@ export async function DELETE(
     await prisma.product.delete({ where: { id } });
 
     revalidatePath("/");
+    await invalidateShopProductCache(existing.shop.slug, id);
 
     return NextResponse.json({ ok: true });
 }

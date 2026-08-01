@@ -1,46 +1,23 @@
 import Image from "next/image";
 import Link from "next/link";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import { ArrowRight, Store } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import ShopHomePage from "@/components/ShopHomePage";
 import { prisma } from "@/lib/prisma";
+import { getShopForCurrentDomain } from "@/lib/server/domainShop";
 import { getShopLandingCards } from "@/lib/shops";
 
-function normalizeRequestDomain(host: string | null) {
-  const domain = host
-    ?.trim()
-    .toLowerCase()
-    .replace(/^www\./, "")
-    .split(":")[0];
-
-  if (!domain || domain === "localhost" || domain === "127.0.0.1") {
-    return null;
-  }
-
-  return domain;
-}
-
 export default async function PlatformLandingPage() {
-  const domain = normalizeRequestDomain((await headers()).get("host"));
+  const domainShop = await getShopForCurrentDomain();
 
-  if (domain) {
-    const domainShop = await prisma.shop.findFirst({
-      where: {
-        domain,
-        status: "ACTIVE",
-        shopType: {
-          in: ["PRODUCT", "HYBRID"],
-        },
-      } as never,
-      select: {
-        slug: true,
-      },
-    });
-
-    if (domainShop) {
-      redirect(`/shops/${domainShop.slug}`);
-    }
+  if (domainShop) {
+    return (
+      <ShopHomePage
+        shop={domainShop}
+        storefrontBasePath=""
+        showPlatformLink={false}
+      />
+    );
   }
 
   const shops = await prisma.shop.findMany({
@@ -77,19 +54,19 @@ export default async function PlatformLandingPage() {
               <p className="mb-6 text-sm font-semibold tracking-[0.24em] text-red-600">
                 {isService ? "放松享受" : "生活用品"}
               </p>
-              <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-red-100 text-red-700">
+              <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl border border-red-100 bg-white shadow-sm text-red-700">
                 {shop.logoUrl ? (
-                  <div className="relative h-16 w-16 overflow-hidden rounded-2xl">
+                  <div className="relative h-full w-full overflow-hidden">
                     <Image
                       src={shop.logoUrl}
                       alt={`${shop.name} logo`}
                       fill
-                      className="object-cover"
-                      sizes="64px"
+                      className="scale-125 object-contain"
+                      sizes="96px"
                     />
                   </div>
                 ) : (
-                  <Store className="h-9 w-9" />
+                  <Store className="h-11 w-11" />
                 )}
               </div>
               <h2 className="mt-8 text-3xl font-semibold">{shop.name}</h2>

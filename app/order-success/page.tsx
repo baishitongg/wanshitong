@@ -2,7 +2,8 @@ import Link from "next/link";
 import { CheckCircle2, ChevronLeft, MessageCircle, Send } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
-import { requireShopBySlug } from "@/lib/shops";
+import { getShopForCurrentDomain } from "@/lib/server/domainShop";
+import { buildStorefrontHref, requireShopBySlug } from "@/lib/shops";
 import { resolveShopTheme, withAlpha } from "@/lib/shopTheme";
 
 type SearchParams = Promise<{
@@ -26,9 +27,12 @@ function buildTelegramHref(username: string) {
 
 export default async function OrderSuccessPage({ searchParams }: Props) {
   const { id: orderId, shop: shopSlug } = await searchParams;
-  const shop = shopSlug ? await requireShopBySlug(shopSlug).catch(() => null) : null;
+  const domainShop = await getShopForCurrentDomain();
+  const shop =
+    domainShop ?? (shopSlug ? await requireShopBySlug(shopSlug).catch(() => null) : null);
+  const storefrontBasePath = domainShop ? "" : undefined;
   const theme = resolveShopTheme(shop);
-  const backHref = shop ? `/shops/${shop.slug}` : "/";
+  const backHref = shop ? buildStorefrontHref(shop.slug, "", storefrontBasePath) : "/";
   const whatsappHref = shop?.whatsappPhone
     ? buildWhatsAppHref(shop.whatsappPhone)
     : null;
@@ -44,6 +48,8 @@ export default async function OrderSuccessPage({ searchParams }: Props) {
         theme={theme}
         supportWhatsApp={shop?.whatsappPhone ?? null}
         supportTelegram={shop?.telegramUsername ?? null}
+        storefrontBasePath={storefrontBasePath}
+        showPlatformLink={!domainShop}
       />
 
       <div className="container mx-auto max-w-3xl px-6 py-8 md:px-20">

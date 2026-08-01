@@ -101,6 +101,22 @@ export function buildShopHref(shopSlug: string, suffix = "") {
   return `/shops/${shopSlug}${suffix}`;
 }
 
+export function buildStorefrontHref(
+  shopSlug: string,
+  suffix = "",
+  storefrontBasePath?: string,
+) {
+  if (storefrontBasePath === undefined) {
+    return buildShopHref(shopSlug, suffix);
+  }
+
+  const normalizedBase = storefrontBasePath.replace(/\/$/, "");
+  const normalizedSuffix = suffix.startsWith("/") ? suffix : `/${suffix}`;
+  const href = `${normalizedBase}${normalizedSuffix === "/" ? "" : normalizedSuffix}`;
+
+  return href || "/";
+}
+
 export function serializeProduct<
   T extends {
     price: Prisma.Decimal | number;
